@@ -2,6 +2,11 @@ import { loadEnv, defineConfig } from "@medusajs/framework/utils"
 
 loadEnv(process.env.NODE_ENV || "production", process.cwd())
 
+// Public origin of this backend, used to build file URLs (/static/...) that browsers can reach.
+const PUBLIC_URL =
+  process.env.BACKEND_PUBLIC_URL ||
+  (process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : "http://localhost:9000")
+
 module.exports = defineConfig({
   projectConfig: {
     databaseUrl: process.env.DATABASE_URL,
@@ -28,5 +33,22 @@ module.exports = defineConfig({
   },
   modules: [
     { key: "api_key", resolve: "@medusajs/medusa/api-key" },
+    {
+      // Local file storage. Files land in <cwd>/static (mount a Railway volume there) and are
+      // served at <PUBLIC_URL>/static/<name>. Used for product datasheet PDFs uploaded from the admin.
+      resolve: "@medusajs/medusa/file",
+      options: {
+        providers: [
+          {
+            resolve: "@medusajs/medusa/file-local",
+            id: "local",
+            options: {
+              upload_dir: "static",
+              backend_url: `${PUBLIC_URL}/static`,
+            },
+          },
+        ],
+      },
+    },
   ],
 })
