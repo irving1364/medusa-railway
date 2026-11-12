@@ -5,15 +5,15 @@ WORKDIR /app
 RUN apk add --no-cache python3 make g++ libc6-compat \
     && corepack enable
 
-COPY package.json ./
+COPY package.json package-lock.json ./
 COPY tsconfig.json ./
 COPY medusa-config.ts ./
 COPY src ./src
 
-RUN npm install --legacy-peer-deps --no-audit --no-fund
+# Exact versions from the lock file: a fresh resolve pulled a @medusajs/draft-order build incompatible with the pinned dashboard
+RUN npm ci --legacy-peer-deps --no-audit --no-fund
 
-# Cap the Node heap so the admin (Vite) build keeps a steady memory footprint inside the Railway builder
-RUN NODE_OPTIONS=--max-old-space-size=1536 npx medusa build
+RUN npx medusa build
 
 RUN cd /app/.medusa/server && npm install --legacy-peer-deps --omit=dev --no-audit --no-fund && npm cache clean --force
 
