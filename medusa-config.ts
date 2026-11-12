@@ -33,6 +33,8 @@ module.exports = defineConfig({
   },
   modules: [
     { key: "api_key", resolve: "@medusajs/medusa/api-key" },
+    // Portfolio projects ("Proyectos" on the storefront) with editorial workflow and history
+    { resolve: "./src/modules/project" },
     {
       // Local file storage. Files land in <cwd>/static (mount a Railway volume there) and are
       // served at <PUBLIC_URL>/static/<name>. Used for product datasheet PDFs uploaded from the admin.
