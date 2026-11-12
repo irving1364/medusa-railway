@@ -12,7 +12,8 @@ COPY src ./src
 
 RUN npm install --legacy-peer-deps --no-audit --no-fund
 
-RUN npx medusa build
+# Cap the Node heap so the admin (Vite) build keeps a steady memory footprint inside the Railway builder
+RUN NODE_OPTIONS=--max-old-space-size=2048 npx medusa build
 
 RUN cd /app/.medusa/server && npm install --legacy-peer-deps --omit=dev --no-audit --no-fund && npm cache clean --force
 
