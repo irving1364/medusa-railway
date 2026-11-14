@@ -29,6 +29,8 @@ module.exports = defineConfig({
     // the bundle at `medusa build` time and breaks production logins with
     // "Failed to fetch" (mixed-content / cross-origin).
     backendUrl: process.env.BACKEND_URL || "",
+    // Dashboard upload limit (default 1 MB): photos straight from a phone are 3-6 MB.
+    maxUploadFileSize: 15 * 1024 * 1024,
     disable: process.env.DISABLE_MEDUSA_ADMIN === "true",
   },
   modules: [
