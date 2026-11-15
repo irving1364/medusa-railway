@@ -1,0 +1,330 @@
+import { Badge, Button, Container, Heading, Input, Label, Select, Switch, Text, Textarea } from "@medusajs/ui"
+import { ArrowPath } from "@medusajs/icons"
+import { useMemo } from "react"
+import {
+  AVAILABILITY, STOREFRONT_URL, dimensionsLine, publishProblems, slugify, suggestAlt, suggestHandle, suggestSeoDescription, suggestSeoTitle, suggestSubtitle,
+  type Category, type Material, type WebProductForm,
+} from "../lib/web-products"
+import FeaturesEditor from "./features-editor"
+import ProductMedia from "./product-media"
+
+interface Props {
+  value: WebProductForm
+  onChange: (next: WebProductForm) => void
+  categories: Category[]
+  materials: Material[]
+  onManageMaterials: () => void
+  /** New products and drafts follow the title with their URL; published ones keep it unless edited on purpose. */
+  isNew: boolean
+  productId?: string
+  previousHandles?: string[]
+}
+
+const SECTIONS = [
+  { id: "info", n: "01", title: "Información general", hint: "Identificación y descripción del producto." },
+  { id: "specs", n: "02", title: "Especificaciones técnicas", hint: "Dimensiones y características del producto." },
+  { id: "media", n: "03", title: "Fotografías y documentación", hint: "Imágenes del producto y ficha técnica descargable." },
+  { id: "publish", n: "04", title: "Disponibilidad, SEO y publicación", hint: "Configure cómo aparecerá el producto en la web." },
+]
+
+const Field = ({ label, hint, required, right, children }: { label: string; hint?: string; required?: boolean; right?: React.ReactNode; children: React.ReactNode }) => (
+  <div className="flex flex-col gap-1.5">
+    <div className="flex items-center justify-between gap-2">
+      <Label size="small" weight="plus">{label}{required && <span className="text-ui-fg-error"> *</span>}</Label>
+      {right}
+    </div>
+    {children}
+    {hint && <Text size="xsmall" className="text-ui-fg-subtle">{hint}</Text>}
+  </div>
+)
+
+const Auto = ({ custom, onRestore }: { custom: boolean; onRestore: () => void }) => (
+  <span className="flex items-center gap-2">
+    <Badge size="2xsmall" color={custom ? "orange" : "green"}>{custom ? "Editado" : "Automático · Editable"}</Badge>
+    {custom && <Button size="small" variant="transparent" type="button" onClick={onRestore}><ArrowPath /> Restaurar</Button>}
+  </span>
+)
+
+const Counter = ({ value, max }: { value: string; max: number }) => (
+  <span className={`text-xs ${value.length > max ? "text-ui-fg-error" : "text-ui-fg-muted"}`}>{value.length}/{max}</span>
+)
+
+const Section = ({ s, children }: { s: (typeof SECTIONS)[number]; children: React.ReactNode }) => (
+  <Container id={s.id} className="scroll-mt-20 divide-y p-0">
+    <div className="flex items-start justify-between gap-3 px-6 py-4">
+      <div>
+        <Heading level="h2">{s.title}</Heading>
+        <Text size="small" className="text-ui-fg-subtle">{s.hint}</Text>
+      </div>
+      <Badge size="2xsmall" color="grey">{s.n} / 04</Badge>
+    </div>
+    <div className="px-6 py-5">{children}</div>
+  </Container>
+)
+
+/** The four-block product form from the specification. Suggestions regenerate until a field is edited by hand. */
+export default function WebProductForm({ value, onChange, categories, materials, onManageMaterials, isNew, productId, previousHandles = [] }: Props) {
+  const lines = useMemo(() => categories.filter((c) => !c.parent_category_id), [categories])
+  const category = categories.find((c) => c.id === value.categoryId) || null
+  const lineId = category?.parent_category_id || (category && !category.parent_category_id ? category.id : null)
+  const subcats = useMemo(() => categories.filter((c) => c.parent_category_id === lineId), [categories, lineId])
+  const autoHandle = isNew || value.status === "draft"
+
+  /** Applies a patch and regenerates every suggestion the user has not customised. */
+  const apply = (patch: Partial<WebProductForm>) => {
+    const next = { ...value, ...patch }
+    const cat = categories.find((c) => c.id === next.categoryId) || null
+    if (!next.subtitleCustom) next.subtitle = suggestSubtitle(next, cat)
+    if (!next.seoTitleCustom) next.seoTitle = suggestSeoTitle(next)
+    if (!next.seoDescriptionCustom) next.seoDescription = suggestSeoDescription(next)
+    if (!next.handleCustom && autoHandle) next.handle = suggestHandle(next)
+    onChange(next)
+  }
+  const text = (key: keyof WebProductForm) => ({ value: (value[key] as string) || "", onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => apply({ [key]: e.target.value } as Partial<WebProductForm>) })
+
+  const activeMaterials = materials.filter((m) => m.active || m.name === value.material)
+  const problems = publishProblems(value)
+  const dims = dimensionsLine(value)
+  const seoTitle = value.seoTitle || suggestSeoTitle(value)
+  const seoDescription = value.seoDescription || suggestSeoDescription(value)
+
+  return (
+    <div className="flex flex-col gap-4">
+      <nav className="flex flex-wrap gap-1.5">
+        {SECTIONS.map((s) => (
+          <a key={s.id} href={`#${s.id}`} className="rounded-full border border-ui-border-base px-3 py-1 text-xs text-ui-fg-subtle hover:bg-ui-bg-subtle hover:text-ui-fg-base">
+            <span className="font-mono">{s.n}</span> {s.title}
+          </a>
+        ))}
+      </nav>
+
+      {/* 01 */}
+      <Section s={SECTIONS[0]}>
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="md:col-span-2">
+            <Field label="Nombre del producto" required hint="Debe identificar el producto con claridad.">
+              <Input placeholder="Ej. Jaula Veterinaria de Hospitalización de 5 Estaciones" {...text("title")} />
+            </Field>
+          </div>
+          <Field label="Categoría principal" required>
+            <Select value={lineId || ""} onValueChange={(v) => apply({ categoryId: categories.find((c) => c.parent_category_id === v)?.id || v })}>
+              <Select.Trigger><Select.Value placeholder="Seleccionar línea" /></Select.Trigger>
+              <Select.Content>{lines.map((l) => <Select.Item key={l.id} value={l.id}>{l.name}</Select.Item>)}</Select.Content>
+            </Select>
+          </Field>
+          <Field label="Subcategoría" required hint="Las opciones cambian según la categoría principal.">
+            <Select value={category?.parent_category_id ? category.id : ""} onValueChange={(v) => apply({ categoryId: v })} disabled={!lineId}>
+              <Select.Trigger><Select.Value placeholder={lineId ? "Seleccionar subcategoría" : "Elija primero la categoría principal"} /></Select.Trigger>
+              <Select.Content>{subcats.map((c) => <Select.Item key={c.id} value={c.id}>{c.name}</Select.Item>)}</Select.Content>
+            </Select>
+          </Field>
+          <div className="md:col-span-2">
+            <Field label="Material principal" required right={<Button size="small" variant="transparent" type="button" onClick={onManageMaterials}>Gestionar materiales</Button>}>
+              <Select value={value.material || ""} onValueChange={(v) => apply({ material: v })}>
+                <Select.Trigger><Select.Value placeholder="Seleccionar material" /></Select.Trigger>
+                <Select.Content>
+                  {activeMaterials.map((m) => <Select.Item key={m.id} value={m.name}>{m.name}{m.active ? "" : " (inhabilitado)"}</Select.Item>)}
+                  {value.material && !activeMaterials.some((m) => m.name === value.material) && <Select.Item value={value.material}>{value.material}</Select.Item>}
+                </Select.Content>
+              </Select>
+            </Field>
+          </div>
+          <div className="md:col-span-2">
+            <Field label="Subtítulo del producto" hint="Propuesta basada en la subcategoría y el material." right={<Auto custom={value.subtitleCustom} onRestore={() => apply({ subtitleCustom: false })} />}>
+              <Input value={value.subtitle} onChange={(e) => onChange({ ...value, subtitle: e.target.value, subtitleCustom: e.target.value !== suggestSubtitle(value, category) })} placeholder="Ej. Jaula veterinaria en acero inoxidable AISI 304" />
+            </Field>
+          </div>
+          <div className="md:col-span-2">
+            <Field label="Descripción del producto" required hint="Explique qué es y para qué sirve. Las características detalladas se agregan en la siguiente sección.">
+              <Textarea rows={5} placeholder="Módulo de hospitalización veterinaria de cinco estaciones, destinado al alojamiento temporal y la observación de pacientes…" {...text("description")} />
+            </Field>
+          </div>
+        </div>
+      </Section>
+
+      {/* 02 */}
+      <Section s={SECTIONS[1]}>
+        <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-between gap-2">
+              <Label size="small" weight="plus">Dimensiones exteriores</Label>
+              <Badge size="2xsmall" color="grey">cm</Badge>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              {([["dimLength", "Largo", "dimLengthMax"], ["dimDepth", "Profundidad", "dimDepthMax"], ["dimHeight", "Altura", "dimHeightMax"]] as const).map(([key, label, maxKey]) => (
+                <div key={key} className="flex flex-col gap-1.5">
+                  <Label size="xsmall" className="text-ui-fg-subtle">{label}</Label>
+                  <div className="flex items-center gap-1.5">
+                    <Input size="small" type="number" min={0} step="0.1" inputMode="decimal" placeholder="150" {...text(key)} />
+                    {value.dimAdjustable && (<><span className="text-ui-fg-muted">–</span><Input size="small" type="number" min={0} step="0.1" inputMode="decimal" placeholder="máx." {...text(maxKey)} /></>)}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <Text size="xsmall" className="text-ui-fg-subtle">Medidas del producto, sin embalaje. Confirmar si la altura incluye las ruedas.</Text>
+            <label className="flex items-center gap-2">
+              <Switch size="small" checked={value.dimAdjustable} onCheckedChange={(v) => apply({ dimAdjustable: v })} />
+              <Text size="small">Este producto tiene dimensiones ajustables (registre el rango mínimo–máximo)</Text>
+            </label>
+            <Field label="Nota de dimensiones (opcional)" hint="Ej. Bandeja removible 50 × 35 cm · Base 50 × 55 cm">
+              <Input size="small" placeholder="Detalle adicional que la web muestra junto a las medidas" {...text("dimNote")} />
+            </Field>
+            {value.variants.length > 1 && (
+              <div className="rounded-lg border border-ui-border-base p-3">
+                <Text size="small" weight="plus">Dimensiones por variante</Text>
+                <Text size="xsmall" className="text-ui-fg-subtle">Este producto tiene {value.variants.length} variantes; cada una puede tener sus medidas. Las variantes y sus precios se gestionan en la ficha estándar de Medusa.</Text>
+                <table className="mt-2 w-full text-sm">
+                  <thead><tr className="text-left text-xs text-ui-fg-subtle"><th className="py-1 pr-2">Variante</th><th className="py-1 pr-2">Largo</th><th className="py-1 pr-2">Profundidad</th><th className="py-1">Altura</th></tr></thead>
+                  <tbody>
+                    {value.variants.map((v, i) => (
+                      <tr key={v.id}>
+                        <td className="py-1 pr-2">{v.title}{v.sku ? <span className="ml-1 font-mono text-[11px] text-ui-fg-muted">{v.sku}</span> : null}</td>
+                        {(["length", "width", "height"] as const).map((k) => (
+                          <td key={k} className="py-1 pr-2">
+                            <Input size="small" type="number" min={0} step="0.1" value={v[k] ?? ""} onChange={(e) => onChange({ ...value, variants: value.variants.map((x, j) => (j === i ? { ...x, [k]: e.target.value ? Number(e.target.value) : null } : x)) })} />
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-3 border-t border-ui-border-base pt-5">
+            <div className="flex items-center justify-between gap-2">
+              <Label size="small" weight="plus">Características técnicas</Label>
+              <Badge size="2xsmall" color="grey">{value.features.length} registrada{value.features.length === 1 ? "" : "s"}</Badge>
+            </div>
+            <FeaturesEditor value={value.features} onChange={(features) => onChange({ ...value, features })} />
+          </div>
+
+          <div className="flex flex-col gap-2 border-t border-ui-border-base pt-5">
+            <Label size="small" weight="plus">Vista previa de especificaciones</Label>
+            <div className="rounded-lg bg-ui-bg-subtle p-3 text-sm">
+              <div className="flex items-center justify-between gap-3 border-b border-ui-border-base pb-2"><span className="text-ui-fg-subtle">Dimensiones</span><span className="font-medium">{dims || "—"}{value.dimNote ? <span className="ml-2 text-ui-fg-subtle">· {value.dimNote}</span> : null}</span></div>
+              {value.features.length ? (
+                <ul className="mt-2 flex flex-col gap-1">{value.features.map((f, i) => <li key={i} className="flex items-start gap-2"><span className="text-ui-fg-interactive">✓</span>{f}</li>)}</ul>
+              ) : <Text size="xsmall" className="mt-2 text-ui-fg-subtle">Sin características.</Text>}
+            </div>
+          </div>
+        </div>
+      </Section>
+
+      {/* 03 */}
+      <Section s={SECTIONS[2]}>
+        <ProductMedia
+          images={value.images}
+          thumbnail={value.thumbnail}
+          datasheetUrl={value.datasheetUrl}
+          datasheetName={value.datasheetName}
+          suggestAlt={(i) => suggestAlt(value, i)}
+          onImages={(images) => onChange({ ...value, images })}
+          onThumbnail={(thumbnail) => onChange({ ...value, thumbnail })}
+          onDatasheet={(datasheetUrl, datasheetName) => onChange({ ...value, datasheetUrl, datasheetName })}
+        />
+      </Section>
+
+      {/* 04 */}
+      <Section s={SECTIONS[3]}>
+        <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-3">
+            <Label size="small" weight="plus">1. Información comercial</Label>
+            <div className="grid gap-4 md:grid-cols-2">
+              <Field label="Disponibilidad del producto" required hint={AVAILABILITY.find((a) => a.value === value.availability)?.hint}>
+                <Select value={value.availability} onValueChange={(v) => apply({ availability: v as WebProductForm["availability"] })}>
+                  <Select.Trigger><Select.Value /></Select.Trigger>
+                  <Select.Content>{AVAILABILITY.map((a) => <Select.Item key={a.value} value={a.value}>{a.label}</Select.Item>)}</Select.Content>
+                </Select>
+              </Field>
+              <div className="flex flex-col gap-3">
+                <label className="flex items-center gap-2 pt-6">
+                  <Switch size="small" checked={value.showPrice} onCheckedChange={(v) => onChange({ ...value, showPrice: v })} />
+                  <Text size="small">Mostrar precio en la web</Text>
+                </label>
+                {value.showPrice && value.variants.length <= 1 && (
+                  <Field label="Precio de referencia (B/.)" hint="Precio de una unidad, sin ITBMS.">
+                    <Input size="small" type="number" min={0} step="0.01" inputMode="decimal" placeholder="925.00" {...text("price")} />
+                  </Field>
+                )}
+                {value.showPrice && value.variants.length > 1 && (
+                  <Text size="xsmall" className="text-ui-fg-subtle">Los precios de las {value.variants.length} variantes se editan en la ficha estándar de Medusa.</Text>
+                )}
+              </div>
+            </div>
+            <div className="rounded-md bg-ui-bg-subtle px-3 py-2">
+              <Text size="xsmall" className="text-ui-fg-subtle">
+                {value.availability === "unavailable"
+                  ? "El producto se mostrará como no disponible, sin botón de cotización."
+                  : value.showPrice
+                    ? "El producto se mostrará con su precio de referencia y la opción de solicitar cotización."
+                    : "El producto se mostrará con opción de solicitar cotización, sin precio público."}
+              </Text>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-3 border-t border-ui-border-base pt-5">
+            <div className="flex items-center justify-between gap-2">
+              <Label size="small" weight="plus">2. Configuración SEO</Label>
+              {(value.seoTitleCustom || value.seoDescriptionCustom || value.handleCustom) && (
+                <Button size="small" variant="transparent" type="button" onClick={() => apply({ seoTitleCustom: false, seoDescriptionCustom: false, handleCustom: false })}><ArrowPath /> Restaurar sugerencias</Button>
+              )}
+            </div>
+            <Field label="Título SEO" right={<span className="flex items-center gap-2"><Counter value={seoTitle} max={60} /><Auto custom={value.seoTitleCustom} onRestore={() => apply({ seoTitleCustom: false })} /></span>}>
+              <Input value={value.seoTitle} onChange={(e) => onChange({ ...value, seoTitle: e.target.value, seoTitleCustom: e.target.value !== suggestSeoTitle(value) })} placeholder={suggestSeoTitle(value) || "Se genera desde el nombre"} />
+            </Field>
+            <Field
+              label="URL del producto"
+              hint={`${STOREFRONT_URL}/mobiliario/${value.handle || "…"}${!isNew && value.status === "published" ? " · Cambiarla en un producto publicado crea una redirección permanente desde la URL anterior." : ""}`}
+              right={<Auto custom={value.handleCustom || (!autoHandle && !isNew)} onRestore={() => apply({ handleCustom: false, handle: suggestHandle(value) })} />}
+            >
+              <Input value={value.handle} onChange={(e) => onChange({ ...value, handle: slugify(e.target.value.replace(/\s+/g, "-")), handleCustom: true })} placeholder="se-genera-desde-el-nombre" />
+            </Field>
+            {previousHandles.length > 0 && <Text size="xsmall" className="text-ui-fg-subtle">URLs anteriores que redirigen a esta: {previousHandles.map((h) => `/mobiliario/${h}`).join(", ")}</Text>}
+            <Field label="Meta descripción" right={<span className="flex items-center gap-2"><Counter value={seoDescription} max={160} /><Auto custom={value.seoDescriptionCustom} onRestore={() => apply({ seoDescriptionCustom: false })} /></span>}>
+              <Textarea rows={3} value={value.seoDescription} onChange={(e) => onChange({ ...value, seoDescription: e.target.value, seoDescriptionCustom: e.target.value !== suggestSeoDescription(value) })} placeholder={suggestSeoDescription(value) || "Se genera desde el nombre y el material"} />
+            </Field>
+          </div>
+
+          <div className="flex flex-col gap-2 border-t border-ui-border-base pt-5">
+            <Label size="small" weight="plus">3. Vista previa</Label>
+            <div className="rounded-lg border border-ui-border-base p-4">
+              <Text size="xsmall" className="text-ui-fg-muted">Resultado ilustrativo en buscadores</Text>
+              <p className="mt-1 text-[17px] leading-snug text-[#1a0dab]">{seoTitle || "Título del producto | KARVEN Medical"}</p>
+              <p className="text-xs text-[#006621]">karvenmedical.com/mobiliario/{value.handle || "url-del-producto"}</p>
+              <p className="mt-1 text-sm text-ui-fg-subtle">{seoDescription || "Meta descripción del producto."}</p>
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              <span className="text-ui-fg-subtle">Estado comercial</span><span className="text-right"><Badge size="2xsmall" color="grey">{AVAILABILITY.find((a) => a.value === value.availability)?.label}</Badge></span>
+              <span className="text-ui-fg-subtle">Botón público</span><span className="text-right">{value.availability === "unavailable" ? "Sin botón" : "Solicitar cotización"}</span>
+              {productId && value.status === "published" && (<><span className="text-ui-fg-subtle">Página pública</span><a className="text-right text-ui-fg-interactive hover:underline" href={`${STOREFRONT_URL}/mobiliario/${value.handle}`} target="_blank" rel="noreferrer">Ver en la web</a></>)}
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-3 border-t border-ui-border-base pt-5">
+            <div className="flex items-center justify-between gap-2">
+              <Label size="small" weight="plus">4. Publicación</Label>
+              <Badge size="2xsmall" color={value.status === "published" ? "green" : "orange"}>{value.status === "published" ? "Publicado" : "Borrador"}</Badge>
+            </div>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <label className={`flex flex-1 cursor-pointer items-start gap-2 rounded-lg border p-3 ${value.status === "draft" ? "border-ui-border-interactive" : "border-ui-border-base"}`}>
+                <input type="radio" name="status" className="mt-1" checked={value.status === "draft"} onChange={() => apply({ status: "draft" })} />
+                <span><Text size="small" weight="plus">Guardar como borrador</Text><Text size="xsmall" className="text-ui-fg-subtle">No se muestra en la web.</Text></span>
+              </label>
+              <label className={`flex flex-1 cursor-pointer items-start gap-2 rounded-lg border p-3 ${value.status === "published" ? "border-ui-border-interactive" : "border-ui-border-base"}`}>
+                <input type="radio" name="status" className="mt-1" checked={value.status === "published"} onChange={() => apply({ status: "published" })} />
+                <span><Text size="small" weight="plus">Publicar en la web</Text><Text size="xsmall" className="text-ui-fg-subtle">Visible en karvenmedical.com un minuto después de guardar.</Text></span>
+              </label>
+            </div>
+            {problems.length > 0 ? (
+              <Text size="xsmall" className="text-ui-fg-error">Para publicar faltan: {problems.join(", ")}.</Text>
+            ) : (
+              <Text size="xsmall" className="text-ui-fg-subtle">Los campos esenciales están completos. La ficha PDF puede agregarse después.</Text>
+            )}
+          </div>
+        </div>
+      </Section>
+    </div>
+  )
+}

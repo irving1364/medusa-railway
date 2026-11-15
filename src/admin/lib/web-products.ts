@@ -1,0 +1,289 @@
+import type { HttpTypes } from "@medusajs/framework/types"
+import { sdk } from "./sdk"
+
+/* ─── Domain ───────────────────────────────────────────────────────────────── */
+
+export type Availability = "available" | "on_order" | "custom" | "unavailable"
+
+export const AVAILABILITY: { value: Availability; label: string; hint: string }[] = [
+  { value: "available", label: "Disponible", hint: "Hay unidades listas para entrega." },
+  { value: "on_order", label: "Bajo pedido", hint: "Se fabrica al confirmar el pedido. Es la modalidad habitual de KARVEN." },
+  { value: "custom", label: "Fabricación a medida", hint: "Se desarrolla según los requisitos del cliente; se cotiza caso por caso." },
+  { value: "unavailable", label: "No disponible", hint: "Se muestra en la web sin opción de cotizar." },
+]
+export const availabilityLabel = (v: string | null | undefined) => AVAILABILITY.find((a) => a.value === v)?.label || "Bajo pedido"
+
+export interface Material { id: string; name: string; active: boolean; sort_order: number }
+
+export interface Category { id: string; name: string; handle: string; parent_category_id: string | null }
+
+export interface VariantDims { id: string; title: string; sku: string | null; length: number | null; width: number | null; height: number | null; price: number | null }
+
+export interface ImageItem { url: string; alt: string; width?: number | null; height?: number | null }
+
+/** Everything the four-block form edits. Unknown metadata keys from older products are kept in `extraMeta`. */
+export interface WebProductForm {
+  // 01 Información general
+  title: string
+  categoryId: string | null
+  subtitle: string
+  subtitleCustom: boolean
+  material: string
+  description: string
+  // 02 Especificaciones técnicas
+  dimLength: string
+  dimDepth: string
+  dimHeight: string
+  dimAdjustable: boolean
+  dimLengthMax: string
+  dimDepthMax: string
+  dimHeightMax: string
+  dimNote: string
+  features: string[]
+  variants: VariantDims[]
+  // 03 Fotografías y documentación
+  images: ImageItem[]
+  thumbnail: string | null
+  datasheetUrl: string | null
+  datasheetName: string | null
+  // 04 Disponibilidad y publicación
+  availability: Availability
+  showPrice: boolean
+  price: string
+  seoTitle: string
+  seoTitleCustom: boolean
+  handle: string
+  handleCustom: boolean
+  seoDescription: string
+  seoDescriptionCustom: boolean
+  status: "draft" | "published"
+  extraMeta: Record<string, unknown>
+}
+
+export const emptyForm = (): WebProductForm => ({
+  title: "", categoryId: null, subtitle: "", subtitleCustom: false, material: "", description: "",
+  dimLength: "", dimDepth: "", dimHeight: "", dimAdjustable: false, dimLengthMax: "", dimDepthMax: "", dimHeightMax: "", dimNote: "", features: [], variants: [],
+  images: [], thumbnail: null, datasheetUrl: null, datasheetName: null,
+  availability: "on_order", showPrice: false, price: "", seoTitle: "", seoTitleCustom: false, handle: "", handleCustom: false,
+  seoDescription: "", seoDescriptionCustom: false, status: "draft", extraMeta: {},
+})
+
+/* ─── Suggestions (automatic, editable) ────────────────────────────────────── */
+
+export const slugify = (value: string) =>
+  value.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 100)
+
+const lower = (s: string) => s.charAt(0).toLowerCase() + s.slice(1)
+
+/** Short name of the product type taken from the subcategory ("Jaulas veterinarias" → "Módulo de hospitalización" is not inferable, so we use the category singular form). */
+const typeFromCategory = (category: Category | null) => {
+  if (!category) return ""
+  const n = category.name.trim()
+  // "Jaulas veterinarias" → "Jaula veterinaria", "Mesas veterinarias" → "Mesa veterinaria"
+  return n.split(" ").map((w, i) => (i === 0 && /s$/i.test(w) && w.length > 3 ? w.replace(/es$/i, "").replace(/s$/i, "") : i > 0 && /as$/i.test(w) ? w.replace(/s$/i, "") : w)).join(" ")
+}
+
+/** Rule agreed with the client: category + material, e.g. "Jaula veterinaria en acero inoxidable AISI 304". */
+export const suggestSubtitle = (f: Pick<WebProductForm, "material">, category: Category | null) => {
+  const type = typeFromCategory(category)
+  if (!type && !f.material) return ""
+  if (!f.material) return type
+  if (!type) return `Fabricado en ${lower(f.material)}`
+  return `${type} en ${lower(f.material)}`
+}
+
+export const suggestSeoTitle = (f: Pick<WebProductForm, "title">) => (f.title.trim() ? `${f.title.trim()} en Panamá | KARVEN Medical` : "")
+
+export const suggestSeoDescription = (f: Pick<WebProductForm, "title" | "material" | "availability" | "description">) => {
+  const title = f.title.trim()
+  if (!title) return ""
+  const mat = f.material ? ` en ${lower(f.material)}` : ""
+  const tail = f.availability === "custom" ? "Fabricación a medida en Panamá. Solicite una propuesta a KARVEN Medical." : "Fabricado en Panamá. Solicite cotización a KARVEN Medical."
+  return `${title}${mat}, ${tail}`.slice(0, 160)
+}
+
+export const suggestHandle = (f: Pick<WebProductForm, "title">) => slugify(f.title)
+
+/** First image describes the product; the rest are details. */
+export const suggestAlt = (f: Pick<WebProductForm, "title" | "material">, index: number) => {
+  const title = f.title.trim()
+  if (!title) return ""
+  const mat = f.material ? ` en ${lower(f.material)}` : ""
+  return index === 0 ? `${title}${mat}` : `Detalle ${index} de ${lower(title)}`
+}
+
+/* ─── Dimensions ───────────────────────────────────────────────────────────── */
+
+const num = (s: string) => { const n = Number(String(s).replace(",", ".")); return Number.isFinite(n) && n > 0 ? n : null }
+const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1).replace(/\.0$/, ""))
+
+/** "150 × 70 × 165 cm", with ranges when adjustable ("50 × 55 × 85–130 cm"). */
+export const dimensionsLine = (f: Pick<WebProductForm, "dimLength" | "dimDepth" | "dimHeight" | "dimAdjustable" | "dimLengthMax" | "dimDepthMax" | "dimHeightMax">) => {
+  const part = (v: string, max: string) => { const a = num(v); if (a === null) return null; const b = f.dimAdjustable ? num(max) : null; return b && b > a ? `${fmt(a)}–${fmt(b)}` : fmt(a) }
+  const parts = [part(f.dimLength, f.dimLengthMax), part(f.dimDepth, f.dimDepthMax), part(f.dimHeight, f.dimHeightMax)]
+  if (parts.every((p) => p === null)) return ""
+  return `${parts.map((p) => p ?? "—").join(" × ")} cm`
+}
+
+/* ─── Product ⇄ form ───────────────────────────────────────────────────────── */
+
+export type AdminProduct = HttpTypes.AdminProduct
+
+const FORM_META_KEYS = ["material", "dim_length", "dim_depth", "dim_height", "dim_adjustable", "dim_length_max", "dim_depth_max", "dim_height_max", "dim_note", "features", "availability", "show_price", "seo_title", "seo_title_custom", "seo_description", "seo_description_custom", "handle_custom", "subtitle_custom", "image_alts", "datasheet_url", "datasheet_name", "dimensions"]
+
+const str = (v: unknown) => (v === null || v === undefined ? "" : String(v))
+const numStr = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? fmt(v) : typeof v === "string" && num(v) !== null ? v : "")
+
+export const toForm = (p: AdminProduct): WebProductForm => {
+  const m = (p.metadata || {}) as Record<string, unknown>
+  const alts = (m.image_alts && typeof m.image_alts === "object" ? (m.image_alts as Record<string, string>) : {}) || {}
+  const extraMeta = Object.fromEntries(Object.entries(m).filter(([k]) => !FORM_META_KEYS.includes(k)))
+  const variants = (p.variants || []).map((v) => ({
+    id: v.id, title: v.title || "", sku: v.sku || null,
+    length: v.length ?? null, width: v.width ?? null, height: v.height ?? null,
+    price: (v.prices || []).find((pr) => pr.currency_code === "pab")?.amount ?? (v.prices || [])[0]?.amount ?? null,
+  }))
+  const single = variants.length === 1 ? variants[0] : null
+  return {
+    title: p.title || "",
+    categoryId: p.categories?.[0]?.id || null,
+    subtitle: p.subtitle || "",
+    subtitleCustom: m.subtitle_custom === true,
+    material: str(p.material || m.material),
+    description: p.description || "",
+    dimLength: numStr(m.dim_length ?? p.length), dimDepth: numStr(m.dim_depth ?? p.width), dimHeight: numStr(m.dim_height ?? p.height),
+    dimAdjustable: m.dim_adjustable === true,
+    dimLengthMax: numStr(m.dim_length_max), dimDepthMax: numStr(m.dim_depth_max), dimHeightMax: numStr(m.dim_height_max),
+    dimNote: str(m.dim_note),
+    features: Array.isArray(m.features) ? (m.features as unknown[]).map(String).filter(Boolean) : typeof m.features === "string" ? m.features.split(/[\n;]/).map((s) => s.trim()).filter(Boolean) : [],
+    variants,
+    images: (p.images || []).map((i) => ({ url: i.url, alt: alts[i.url] || "" })),
+    thumbnail: p.thumbnail || p.images?.[0]?.url || null,
+    datasheetUrl: str(m.datasheet_url) || null,
+    datasheetName: str(m.datasheet_name) || null,
+    availability: (["available", "on_order", "custom", "unavailable"].includes(str(m.availability)) ? (m.availability as Availability) : "on_order"),
+    showPrice: m.show_price === true,
+    price: single?.price != null ? fmt(single.price) : "",
+    seoTitle: str(m.seo_title), seoTitleCustom: m.seo_title_custom === true,
+    handle: p.handle || "", handleCustom: m.handle_custom === true,
+    seoDescription: str(m.seo_description), seoDescriptionCustom: m.seo_description_custom === true,
+    status: p.status === "published" ? "published" : "draft",
+    extraMeta,
+  }
+}
+
+/** Builds the Medusa create/update payload. Native fields where Medusa has them; the rest in metadata. */
+export const toPayload = (f: WebProductForm, category: Category | null, salesChannelId: string | null, existing: AdminProduct | null) => {
+  const L = num(f.dimLength), D = num(f.dimDepth), H = num(f.dimHeight)
+  const image_alts = Object.fromEntries(f.images.filter((i) => i.alt.trim()).map((i) => [i.url, i.alt.trim()]))
+  const metadata: Record<string, unknown> = {
+    ...f.extraMeta,
+    material: f.material || null,
+    dim_length: L, dim_depth: D, dim_height: H,
+    dim_adjustable: f.dimAdjustable,
+    dim_length_max: f.dimAdjustable ? num(f.dimLengthMax) : null,
+    dim_depth_max: f.dimAdjustable ? num(f.dimDepthMax) : null,
+    dim_height_max: f.dimAdjustable ? num(f.dimHeightMax) : null,
+    dim_note: f.dimNote.trim() || null,
+    dimensions: dimensionsLine(f) || null,
+    features: f.features.map((s) => s.trim()).filter(Boolean),
+    availability: f.availability,
+    show_price: f.showPrice,
+    seo_title: f.seoTitle.trim() || null, seo_title_custom: f.seoTitleCustom,
+    seo_description: f.seoDescription.trim() || null, seo_description_custom: f.seoDescriptionCustom,
+    handle_custom: f.handleCustom,
+    subtitle_custom: f.subtitleCustom,
+    image_alts,
+    datasheet_url: f.datasheetUrl || null,
+    datasheet_name: f.datasheetName || null,
+  }
+  const price = num(f.price)
+  const body: Record<string, unknown> = {
+    title: f.title.trim(),
+    subtitle: f.subtitle.trim() || null,
+    description: f.description.trim() || null,
+    handle: f.handle.trim() || suggestHandle(f),
+    status: f.status,
+    material: f.material || null,
+    length: L, width: D, height: H,
+    images: f.images.map((i) => ({ url: i.url })),
+    thumbnail: f.thumbnail || f.images[0]?.url || null,
+    categories: category ? [{ id: category.id }] : [],
+    metadata,
+  }
+  if (!existing) {
+    body.sales_channels = salesChannelId ? [{ id: salesChannelId }] : []
+    body.options = [{ title: "Modelo", values: ["Estándar"] }]
+    body.variants = [{ title: "Estándar", options: { Modelo: "Estándar" }, manage_inventory: false, length: L, width: D, height: H, prices: price ? [{ currency_code: "pab", amount: price }] : [] }]
+  } else if (f.variants.length) {
+    body.variants = f.variants.map((v) => ({
+      id: v.id, length: v.length, width: v.width, height: v.height,
+      ...(f.variants.length === 1 ? { prices: price ? [{ currency_code: "pab", amount: price }] : [] } : {}),
+    }))
+  }
+  return body
+}
+
+/** What must exist before the product can be published (kept to the essentials, as agreed). */
+export const publishProblems = (f: WebProductForm): string[] => {
+  const problems: string[] = []
+  if (!f.title.trim()) problems.push("Nombre del producto")
+  if (!f.categoryId) problems.push("Categoría")
+  if (!f.description.trim()) problems.push("Descripción")
+  if (!f.images.length) problems.push("Fotografía principal")
+  if (!f.availability) problems.push("Disponibilidad")
+  return problems
+}
+
+/* ─── API ──────────────────────────────────────────────────────────────────── */
+
+export const PRODUCT_FIELDS = "id,title,subtitle,description,handle,status,thumbnail,material,length,width,height,metadata,created_at,updated_at,*images,*categories,*variants,*variants.prices,*options,*options.values,*sales_channels"
+
+const api = <T,>(path: string, init: { method?: string; body?: unknown; query?: Record<string, string | number | undefined> } = {}) =>
+  sdk.client.fetch<T>(path, { method: init.method || "GET", body: init.body, query: init.query })
+
+export const listWebProducts = (query: { q?: string; status?: "draft" | "published"; limit?: number; offset?: number }) =>
+  sdk.admin.product.list({ ...query, fields: "id,title,subtitle,handle,status,thumbnail,material,metadata,updated_at,*categories,*variants,*variants.prices", order: "-updated_at" } as HttpTypes.AdminProductListParams)
+export const getWebProduct = (id: string) => sdk.admin.product.retrieve(id, { fields: PRODUCT_FIELDS })
+export const findByHandle = async (handle: string) => (await sdk.admin.product.list({ handle, fields: "id,handle" } as HttpTypes.AdminProductListParams)).products
+export const createWebProduct = (body: Record<string, unknown>) => sdk.admin.product.create(body as unknown as HttpTypes.AdminCreateProduct, { fields: PRODUCT_FIELDS })
+export const updateWebProduct = (id: string, body: Record<string, unknown>) => sdk.admin.product.update(id, body as unknown as HttpTypes.AdminUpdateProduct, { fields: PRODUCT_FIELDS })
+
+export const listCategories = async (): Promise<Category[]> => {
+  const { product_categories } = await sdk.admin.productCategory.list({ limit: 200, fields: "id,name,handle,parent_category_id,rank" } as HttpTypes.AdminProductCategoryListParams)
+  return (product_categories || []).map((c) => ({ id: c.id, name: c.name, handle: c.handle, parent_category_id: c.parent_category_id || null }))
+}
+export const defaultSalesChannelId = async (): Promise<string | null> => {
+  const { sales_channels } = await sdk.admin.salesChannel.list({ limit: 20 })
+  return sales_channels?.find((s) => /default/i.test(s.name))?.id || sales_channels?.[0]?.id || null
+}
+
+export const listMaterials = () => api<{ materials: Material[] }>("/admin/materials")
+export const createMaterial = (name: string) => api<{ material: Material }>("/admin/materials", { method: "POST", body: { name } })
+export const updateMaterial = (id: string, body: Partial<Pick<Material, "name" | "active" | "sort_order">>) => api<{ material: Material }>(`/admin/materials/${id}`, { method: "POST", body })
+export const deleteMaterial = (id: string) => api<{ id: string }>(`/admin/materials/${id}`, { method: "DELETE" })
+
+export const listRedirects = (product_id: string) => api<{ redirects: { id: string; from_handle: string; to_handle: string }[] }>("/admin/product-redirects", { query: { product_id } })
+export const createRedirect = (from_handle: string, to_handle: string, product_id: string) =>
+  api<{ redirects: { id: string; from_handle: string; to_handle: string }[] }>("/admin/product-redirects", { method: "POST", body: { from_handle, to_handle, product_id } })
+
+export interface UploadedFile { id: string; url: string; name: string; width?: number; height?: number; size?: number; optimized?: boolean }
+
+/** Photos go through /admin/web-uploads (EXIF rotation, max 1600 px, WebP); PDFs are stored as sent. */
+export async function webUpload(files: File[]): Promise<UploadedFile[]> {
+  const form = new FormData()
+  for (const f of files) form.append("files", f)
+  const res = await fetch("/admin/web-uploads", { method: "POST", body: form, credentials: "include" })
+  const body = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(body?.message || `Error ${res.status} al subir`)
+  return body.files as UploadedFile[]
+}
+
+export const errorMessage = (e: unknown, fallback: string) => {
+  if (e && typeof e === "object" && "message" in e && typeof (e as { message: unknown }).message === "string") return (e as { message: string }).message
+  return fallback
+}
+
+export const fmtDate = (iso: string) => new Intl.DateTimeFormat("es-PA", { dateStyle: "medium", timeStyle: "short" }).format(new Date(iso))
+
+export const STOREFRONT_URL = "https://karvenmedical.com"
