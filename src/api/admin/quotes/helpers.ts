@@ -67,5 +67,5 @@ export const bodyToRow = (body: Loose): Loose => {
   return row
 }
 
-export const fmtMoney = (n: number) => `$ ${new Intl.NumberFormat("es-PA", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n || 0)}`
-export const fmtDate = (d: string | Date | null | undefined) => (d ? new Intl.DateTimeFormat("es-PA", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "America/Panama" }).format(new Date(d)) : "")
+export const fmtMoney = (n: number) => { const v = Math.round((Number(n) || 0) * 100) / 100; const [i, f = ""] = Math.abs(v).toFixed(2).split("."); return `$ ${v < 0 ? "-" : ""}${i.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}.${f}` }
+export const fmtDate = (d: string | Date | null | undefined) => { if (!d) return ""; const t = new Date(new Date(d).getTime() - 5 * 3600000); return `${String(t.getUTCDate()).padStart(2, "0")}/${String(t.getUTCMonth() + 1).padStart(2, "0")}/${t.getUTCFullYear()}` }

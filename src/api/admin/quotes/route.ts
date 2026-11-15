@@ -28,7 +28,6 @@ export async function POST(req: AuthenticatedMedusaRequest<Loose>, res: MedusaRe
   if (!("valid_until" in row) || !row.valid_until) row.valid_until = new Date(row.issue_date.getTime() + (Number(profile.validity_days) || 30) * 86400000)
   for (const k of ["warranty_text", "payment_terms", "general_terms"]) if (row[k] === undefined || row[k] === null) row[k] = profile[k] || null
   if (!row.lines) { row.lines = []; row.subtotal = 0; row.discount_total = 0; row.tax_total = 0; row.total = 0 }
-  if (!row.salesperson) row.salesperson = await actorEmail(req)
   row.number = await service.nextNumber(store)
   row.status = "draft"
   row.version = 1

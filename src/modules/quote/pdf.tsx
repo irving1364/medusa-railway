@@ -25,7 +25,7 @@ const LINE = "#D9DEE7"
 const SOFT = "#F3F5F9"
 
 const makeStyles = ({ StyleSheet }: PdfLib) => StyleSheet.create({
-  page: { paddingTop: 34, paddingBottom: 70, paddingHorizontal: 40, fontFamily: "Montserrat", fontSize: 9, color: INK, lineHeight: 1.4 },
+  page: { paddingTop: 34, paddingBottom: 70, paddingHorizontal: 40, fontFamily: "Montserrat", fontSize: 9, color: INK },
   band: { position: "absolute", top: 0, left: 0, right: 0, height: 118, backgroundColor: SOFT, borderBottomRightRadius: 220 },
   header: { flexDirection: "row", justifyContent: "space-between", marginBottom: 26 },
   brand: { fontSize: 12, fontWeight: 600, color: NAVY },
@@ -45,16 +45,16 @@ const makeStyles = ({ StyleSheet }: PdfLib) => StyleSheet.create({
   thead: { flexDirection: "row", backgroundColor: NAVY, color: "#FFFFFF", fontSize: 8.5 },
   th: { paddingVertical: 7, paddingHorizontal: 8, borderRightWidth: 1, borderRightColor: "#4B5C8C" },
   row: { flexDirection: "row", borderTopWidth: 1, borderTopColor: LINE },
-  td: { paddingVertical: 7, paddingHorizontal: 8, borderRightWidth: 1, borderRightColor: LINE },
+  td: { paddingVertical: 7, paddingHorizontal: 8, borderRightWidth: 1, borderRightColor: LINE, lineHeight: 1.25 },
   descRow: { borderTopWidth: 1, borderTopColor: LINE, paddingVertical: 8, paddingHorizontal: 8 },
-  desc: { fontStyle: "italic", fontSize: 8.5, color: INK },
+  desc: { fontStyle: "italic", fontSize: 8.5, color: INK, lineHeight: 1.4 },
   cDesc: { width: "46%" }, cQty: { width: "11%", textAlign: "right" }, cPrice: { width: "14%", textAlign: "right" }, cTax: { width: "13%", textAlign: "right" }, cAmt: { width: "16%", textAlign: "right", borderRightWidth: 0 },
   totals: { marginTop: 18, marginLeft: "auto", width: "48%", borderWidth: 1, borderColor: LINE, borderRadius: 6, overflow: "hidden" },
   totalRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 6, paddingHorizontal: 10, borderTopWidth: 1, borderTopColor: LINE },
   totalMain: { backgroundColor: NAVY, color: "#FFFFFF", fontWeight: 600 },
   section: { marginTop: 14 },
   h: { fontSize: 9.5, fontWeight: 600, marginBottom: 4 },
-  p: { fontSize: 9 },
+  p: { fontSize: 9, lineHeight: 1.4 },
   li: { flexDirection: "row", marginBottom: 2 },
   bullet: { width: 12, textAlign: "center" },
   footer: { position: "absolute", left: 40, right: 40, bottom: 26, borderTopWidth: 1, borderTopColor: INK, paddingTop: 8, fontSize: 8.5, textAlign: "center", color: INK },
@@ -62,9 +62,12 @@ const makeStyles = ({ StyleSheet }: PdfLib) => StyleSheet.create({
   pageNo: { fontSize: 8, color: MUTED, marginTop: 4 },
 })
 
-const money = (n: number) => `$ ${new Intl.NumberFormat("es-PA", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n || 0)}`
-const num = (n: number) => new Intl.NumberFormat("es-PA", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n || 0)
-const date = (d: string | Date | null | undefined) => (d ? new Intl.DateTimeFormat("es-PA", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "America/Panama" }).format(new Date(d)) : "—")
+/** 3,500.00 (Panamanian convention: comma thousands, point decimals) without relying on ICU locale data. */
+const num = (n: number) => { const v = Math.round((Number(n) || 0) * 100) / 100; const [i, f = ""] = Math.abs(v).toFixed(2).split("."); return `${v < 0 ? "-" : ""}${i.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}.${f}` }
+const money = (n: number) => `$ ${num(n)}`
+const pct = (n: number) => String(Math.round((Number(n) || 0) * 100) / 100)
+/** dd/mm/yyyy in Panama time */
+const date = (d: string | Date | null | undefined) => { if (!d) return "—"; const t = new Date(new Date(d).getTime() - 5 * 3600000); return `${String(t.getUTCDate()).padStart(2, "0")}/${String(t.getUTCMonth() + 1).padStart(2, "0")}/${t.getUTCFullYear()}` }
 const lines = (t: string | null | undefined) => (t || "").split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
 
 /** The quotation document, laid out like the Odoo template the client uses. */
@@ -120,7 +123,7 @@ const build = (lib: PdfLib) => {
         {q.intro_text ? <Text style={[s.p, { marginBottom: 10 }]}>{q.intro_text}</Text> : null}
 
         <View style={s.table}>
-          <View style={s.thead} fixed>
+          <View style={s.thead}>
             <Text style={[s.th, s.cDesc]}>DESCRIPCIÓN</Text>
             <Text style={[s.th, s.cQty]}>CANTIDAD</Text>
             <Text style={[s.th, s.cPrice]}>PRECIO UNITARIO</Text>
@@ -132,8 +135,8 @@ const build = (lib: PdfLib) => {
               <View style={s.row} wrap={false}>
                 <View style={[s.td, s.cDesc]}><Text>{l.ref ? `[${l.ref}] ` : ""}{l.title}</Text></View>
                 <View style={[s.td, s.cQty]}><Text>{num(l.quantity)}</Text><Text style={{ color: MUTED, fontSize: 8 }}>{l.unit}</Text></View>
-                <View style={[s.td, s.cPrice]}><Text>{money(l.unit_price)}</Text>{l.discount_pct ? <Text style={{ color: MUTED, fontSize: 8 }}>-{num(l.discount_pct)}%</Text> : null}</View>
-                <View style={[s.td, s.cTax]}><Text>{l.tax_rate ? `ITBMS ${num(l.tax_rate).replace(/,00$/, "")}%` : "Exento"}</Text><Text style={{ color: MUTED, fontSize: 8 }}>Venta</Text></View>
+                <View style={[s.td, s.cPrice]}><Text>{money(l.unit_price)}</Text>{l.discount_pct ? <Text style={{ color: MUTED, fontSize: 8 }}>-{pct(l.discount_pct)}%</Text> : null}</View>
+                <View style={[s.td, s.cTax]}><Text>{l.tax_rate ? `ITBMS ${pct(l.tax_rate)}%` : "Exento"}</Text><Text style={{ color: MUTED, fontSize: 8 }}>Venta</Text></View>
                 <View style={[s.td, s.cAmt]}><Text>{money(lineAmount(l))}</Text></View>
               </View>
               {l.description ? (
@@ -166,12 +169,13 @@ const build = (lib: PdfLib) => {
         {q.general_terms ? <View style={s.section} wrap={false}><Text style={s.h}>Condiciones generales</Text><Bullets text={q.general_terms} /></View> : null}
 
         <View style={s.footer} fixed>
-          <Text>
-            {profile.website ? <Text style={s.footerLink}>{profile.website}</Text> : null}
-            {profile.website && profile.email ? " | " : ""}
-            {profile.email ? <Text style={s.footerLink}>{profile.email}</Text> : null}
-            {profile.whatsapp ? ` | Whatsapp: ${profile.whatsapp}` : ""}
-          </Text>
+          <View style={{ flexDirection: "row", justifyContent: "center", flexWrap: "wrap" }}>
+            {[profile.website ? { t: String(profile.website), link: true } : null, profile.email ? { t: String(profile.email), link: true } : null, profile.whatsapp ? { t: `Whatsapp: ${profile.whatsapp}`, link: false } : null]
+              .filter((x): x is { t: string; link: boolean } => !!x)
+              .map((x, i, arr) => (
+                <Text key={i} style={x.link ? s.footerLink : undefined}>{x.t}{i < arr.length - 1 ? "  |  " : ""}</Text>
+              ))}
+          </View>
           <Text style={s.pageNo} render={({ pageNumber, totalPages }) => `Página ${pageNumber} / ${totalPages}`} />
         </View>
       </Page>
