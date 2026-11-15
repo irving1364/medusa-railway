@@ -17,7 +17,10 @@ export interface Material { id: string; name: string; active: boolean; sort_orde
 
 export interface Category { id: string; name: string; handle: string; parent_category_id: string | null }
 
-export interface VariantDims { id: string; title: string; sku: string | null; length: number | null; width: number | null; height: number | null; price: number | null }
+/** One purchasable variant (size/model). `id` is empty for variants added in the form and not saved yet. */
+export interface VariantRow { id: string; title: string; sku: string; price: string; length: string; width: string; height: string }
+
+export const FEATURED_COLLECTION_HANDLE = "destacados"
 
 export interface ImageItem { url: string; alt: string; width?: number | null; height?: number | null }
 
@@ -40,7 +43,9 @@ export interface WebProductForm {
   dimHeightMax: string
   dimNote: string
   features: string[]
-  variants: VariantDims[]
+  /** Option title used for the variants ("Medida", "Modelo"...) */
+  optionTitle: string
+  variants: VariantRow[]
   // 03 Fotografías y documentación
   images: ImageItem[]
   thumbnail: string | null
@@ -49,7 +54,9 @@ export interface WebProductForm {
   // 04 Disponibilidad y publicación
   availability: Availability
   showPrice: boolean
-  price: string
+  /** Shown on the home rail (collection "destacados") */
+  featured: boolean
+  homeOrder: string
   seoTitle: string
   seoTitleCustom: boolean
   handle: string
@@ -62,9 +69,9 @@ export interface WebProductForm {
 
 export const emptyForm = (): WebProductForm => ({
   title: "", categoryId: null, subtitle: "", subtitleCustom: false, material: "", description: "",
-  dimLength: "", dimDepth: "", dimHeight: "", dimAdjustable: false, dimLengthMax: "", dimDepthMax: "", dimHeightMax: "", dimNote: "", features: [], variants: [],
+  dimLength: "", dimDepth: "", dimHeight: "", dimAdjustable: false, dimLengthMax: "", dimDepthMax: "", dimHeightMax: "", dimNote: "", features: [], optionTitle: "Modelo", variants: [{ id: "", title: "Estándar", sku: "", price: "", length: "", width: "", height: "" }],
   images: [], thumbnail: null, datasheetUrl: null, datasheetName: null,
-  availability: "on_order", showPrice: false, price: "", seoTitle: "", seoTitleCustom: false, handle: "", handleCustom: false,
+  availability: "on_order", showPrice: false, featured: false, homeOrder: "", seoTitle: "", seoTitleCustom: false, handle: "", handleCustom: false,
   seoDescription: "", seoDescriptionCustom: false, status: "draft", extraMeta: {},
 })
 
@@ -135,7 +142,7 @@ export const dimensionsLine = (f: Pick<WebProductForm, "dimLength" | "dimDepth" 
 
 export type AdminProduct = HttpTypes.AdminProduct
 
-const FORM_META_KEYS = ["material", "dim_length", "dim_depth", "dim_height", "dim_adjustable", "dim_length_max", "dim_depth_max", "dim_height_max", "dim_note", "features", "availability", "show_price", "seo_title", "seo_title_custom", "seo_description", "seo_description_custom", "handle_custom", "subtitle_custom", "image_alts", "datasheet_url", "datasheet_name", "dimensions"]
+const FORM_META_KEYS = ["material", "dim_length", "dim_depth", "dim_height", "dim_adjustable", "dim_length_max", "dim_depth_max", "dim_height_max", "dim_note", "features", "availability", "show_price", "seo_title", "seo_title_custom", "seo_description", "seo_description_custom", "handle_custom", "subtitle_custom", "image_alts", "datasheet_url", "datasheet_name", "dimensions", "home_order"]
 
 const str = (v: unknown) => (v === null || v === undefined ? "" : String(v))
 const numStr = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? fmt(v) : typeof v === "string" && num(v) !== null ? v : "")
@@ -144,12 +151,11 @@ export const toForm = (p: AdminProduct): WebProductForm => {
   const m = (p.metadata || {}) as Record<string, unknown>
   const alts = (m.image_alts && typeof m.image_alts === "object" ? (m.image_alts as Record<string, string>) : {}) || {}
   const extraMeta = Object.fromEntries(Object.entries(m).filter(([k]) => !FORM_META_KEYS.includes(k)))
-  const variants = (p.variants || []).map((v) => ({
-    id: v.id, title: v.title || "", sku: v.sku || null,
-    length: v.length ?? null, width: v.width ?? null, height: v.height ?? null,
-    price: (v.prices || []).find((pr) => pr.currency_code === "pab")?.amount ?? (v.prices || [])[0]?.amount ?? null,
-  }))
-  const single = variants.length === 1 ? variants[0] : null
+  const variants: VariantRow[] = (p.variants || []).map((v) => {
+    const price = (v.prices || []).find((pr) => pr.currency_code === "pab")?.amount ?? (v.prices || [])[0]?.amount ?? null
+    return { id: v.id, title: v.title || "", sku: v.sku || "", price: price != null ? fmt(price) : "", length: numStr(v.length), width: numStr(v.width), height: numStr(v.height) }
+  })
+  const optionTitle = p.options?.[0]?.title && !/^default/i.test(p.options[0].title) ? p.options[0].title : "Modelo"
   return {
     title: p.title || "",
     categoryId: p.categories?.[0]?.id || null,
@@ -162,14 +168,16 @@ export const toForm = (p: AdminProduct): WebProductForm => {
     dimLengthMax: numStr(m.dim_length_max), dimDepthMax: numStr(m.dim_depth_max), dimHeightMax: numStr(m.dim_height_max),
     dimNote: str(m.dim_note),
     features: Array.isArray(m.features) ? (m.features as unknown[]).map(String).filter(Boolean) : typeof m.features === "string" ? m.features.split(/[\n;]/).map((s) => s.trim()).filter(Boolean) : [],
-    variants,
+    optionTitle,
+    variants: variants.length ? variants : [{ id: "", title: "Estándar", sku: "", price: "", length: "", width: "", height: "" }],
     images: (p.images || []).map((i) => ({ url: i.url, alt: alts[i.url] || "" })),
     thumbnail: p.thumbnail || p.images?.[0]?.url || null,
     datasheetUrl: str(m.datasheet_url) || null,
     datasheetName: str(m.datasheet_name) || null,
     availability: (["available", "on_order", "custom", "unavailable"].includes(str(m.availability)) ? (m.availability as Availability) : "on_order"),
     showPrice: m.show_price === true,
-    price: single?.price != null ? fmt(single.price) : "",
+    featured: p.collection?.handle === FEATURED_COLLECTION_HANDLE,
+    homeOrder: numStr(m.home_order),
     seoTitle: str(m.seo_title), seoTitleCustom: m.seo_title_custom === true,
     handle: p.handle || "", handleCustom: m.handle_custom === true,
     seoDescription: str(m.seo_description), seoDescriptionCustom: m.seo_description_custom === true,
@@ -179,7 +187,7 @@ export const toForm = (p: AdminProduct): WebProductForm => {
 }
 
 /** Builds the Medusa create/update payload. Native fields where Medusa has them; the rest in metadata. */
-export const toPayload = (f: WebProductForm, category: Category | null, salesChannelId: string | null, existing: AdminProduct | null) => {
+export const toPayload = (f: WebProductForm, category: Category | null, salesChannelId: string | null, existing: AdminProduct | null, featuredCollectionId: string | null) => {
   const L = num(f.dimLength), D = num(f.dimDepth), H = num(f.dimHeight)
   const image_alts = Object.fromEntries(f.images.filter((i) => i.alt.trim()).map((i) => [i.url, i.alt.trim()]))
   const metadata: Record<string, unknown> = {
@@ -202,8 +210,20 @@ export const toPayload = (f: WebProductForm, category: Category | null, salesCha
     image_alts,
     datasheet_url: f.datasheetUrl || null,
     datasheet_name: f.datasheetName || null,
+    home_order: f.featured ? num(f.homeOrder) ?? 0 : null,
   }
-  const price = num(f.price)
+  const optionTitle = f.optionTitle.trim() || "Modelo"
+  const rows = f.variants.filter((v) => v.title.trim())
+  const variants = (rows.length ? rows : [{ id: "", title: "Estándar", sku: "", price: "", length: "", width: "", height: "" }]).map((v, i) => {
+    const price = num(v.price)
+    return {
+      ...(v.id ? { id: v.id } : {}),
+      title: v.title.trim(), sku: v.sku.trim() || null, manage_inventory: false,
+      options: { [optionTitle]: v.title.trim() },
+      length: num(v.length) ?? (i === 0 ? L : null), width: num(v.width) ?? (i === 0 ? D : null), height: num(v.height) ?? (i === 0 ? H : null),
+      prices: price ? [{ currency_code: "pab", amount: price }] : [],
+    }
+  })
   const body: Record<string, unknown> = {
     title: f.title.trim(),
     subtitle: f.subtitle.trim() || null,
@@ -216,17 +236,12 @@ export const toPayload = (f: WebProductForm, category: Category | null, salesCha
     thumbnail: f.thumbnail || f.images[0]?.url || null,
     categories: category ? [{ id: category.id }] : [],
     metadata,
+    // The option carries one value per variant (its title); the existing option is renamed/extended, never duplicated
+    options: [{ ...(existing?.options?.[0]?.id ? { id: existing.options[0].id } : {}), title: optionTitle, values: variants.map((v) => v.title) }],
+    variants,
+    collection_id: f.featured && featuredCollectionId ? featuredCollectionId : null,
   }
-  if (!existing) {
-    body.sales_channels = salesChannelId ? [{ id: salesChannelId }] : []
-    body.options = [{ title: "Modelo", values: ["Estándar"] }]
-    body.variants = [{ title: "Estándar", options: { Modelo: "Estándar" }, manage_inventory: false, length: L, width: D, height: H, prices: price ? [{ currency_code: "pab", amount: price }] : [] }]
-  } else if (f.variants.length) {
-    body.variants = f.variants.map((v) => ({
-      id: v.id, length: v.length, width: v.width, height: v.height,
-      ...(f.variants.length === 1 ? { prices: price ? [{ currency_code: "pab", amount: price }] : [] } : {}),
-    }))
-  }
+  if (!existing) body.sales_channels = salesChannelId ? [{ id: salesChannelId }] : []
   return body
 }
 
@@ -238,12 +253,14 @@ export const publishProblems = (f: WebProductForm): string[] => {
   if (!f.description.trim()) problems.push("Descripción")
   if (!f.images.length) problems.push("Fotografía principal")
   if (!f.availability) problems.push("Disponibilidad")
+  const titles = f.variants.map((v) => v.title.trim()).filter(Boolean)
+  if (new Set(titles.map((t) => t.toLowerCase())).size !== titles.length) problems.push("Variantes con el mismo nombre")
   return problems
 }
 
 /* ─── API ──────────────────────────────────────────────────────────────────── */
 
-export const PRODUCT_FIELDS = "id,title,subtitle,description,handle,status,thumbnail,material,length,width,height,metadata,created_at,updated_at,*images,*categories,*variants,*variants.prices,*options,*options.values,*sales_channels"
+export const PRODUCT_FIELDS = "id,title,subtitle,description,handle,status,thumbnail,material,length,width,height,metadata,collection_id,created_at,updated_at,*images,*categories,*collection,*variants,*variants.prices,*options,*options.values,*sales_channels"
 
 const api = <T,>(path: string, init: { method?: string; body?: unknown; query?: Record<string, string | number | undefined> } = {}) =>
   sdk.client.fetch<T>(path, { method: init.method || "GET", body: init.body, query: init.query })
@@ -253,6 +270,12 @@ export const listWebProducts = (query: { q?: string; status?: "draft" | "publish
 export const getWebProduct = (id: string) => sdk.admin.product.retrieve(id, { fields: PRODUCT_FIELDS })
 export const findByHandle = async (handle: string) => (await sdk.admin.product.list({ handle, fields: "id,handle" } as HttpTypes.AdminProductListParams)).products
 export const createWebProduct = (body: Record<string, unknown>) => sdk.admin.product.create(body as unknown as HttpTypes.AdminCreateProduct, { fields: PRODUCT_FIELDS })
+export const deleteWebProduct = (id: string) => sdk.admin.product.delete(id)
+export const deleteVariant = (productId: string, variantId: string) => sdk.admin.product.deleteVariant(productId, variantId)
+export const featuredCollectionId = async (): Promise<string | null> => {
+  const { collections } = await sdk.admin.productCollection.list({ handle: FEATURED_COLLECTION_HANDLE, limit: 1 } as HttpTypes.AdminCollectionListParams)
+  return collections?.[0]?.id || null
+}
 export const updateWebProduct = (id: string, body: Record<string, unknown>) => sdk.admin.product.update(id, body as unknown as HttpTypes.AdminUpdateProduct, { fields: PRODUCT_FIELDS })
 
 export const listCategories = async (): Promise<Category[]> => {

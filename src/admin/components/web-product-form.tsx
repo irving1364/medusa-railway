@@ -1,9 +1,9 @@
 import { Badge, Button, Container, Heading, Input, Label, Select, Switch, Text, Textarea } from "@medusajs/ui"
-import { ArrowPath } from "@medusajs/icons"
+import { ArrowPath, Plus, Trash } from "@medusajs/icons"
 import { useMemo } from "react"
 import {
   AVAILABILITY, STOREFRONT_URL, dimensionsLine, publishProblems, slugify, suggestAlt, suggestHandle, suggestSeoDescription, suggestSeoTitle, suggestSubtitle,
-  type Category, type Material, type WebProductForm,
+  type Category, type Material, type VariantRow, type WebProductForm,
 } from "../lib/web-products"
 import FeaturesEditor from "./features-editor"
 import ProductMedia from "./product-media"
@@ -169,27 +169,52 @@ export default function WebProductForm({ value, onChange, categories, materials,
             <Field label="Nota de dimensiones (opcional)" hint="Ej. Bandeja removible 50 × 35 cm · Base 50 × 55 cm">
               <Input size="small" placeholder="Detalle adicional que la web muestra junto a las medidas" {...text("dimNote")} />
             </Field>
+          </div>
+
+          <div className="flex flex-col gap-3 border-t border-ui-border-base pt-5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <Label size="small" weight="plus">Variantes (medidas o modelos)</Label>
+              <Badge size="2xsmall" color="grey">{value.variants.length} variante{value.variants.length === 1 ? "" : "s"}</Badge>
+            </div>
+            <Text size="xsmall" className="text-ui-fg-subtle">Un producto con una sola variante usa las dimensiones de arriba. Si se ofrece en varias medidas, agregue una fila por medida con su referencia, precio y dimensiones.</Text>
             {value.variants.length > 1 && (
-              <div className="rounded-lg border border-ui-border-base p-3">
-                <Text size="small" weight="plus">Dimensiones por variante</Text>
-                <Text size="xsmall" className="text-ui-fg-subtle">Este producto tiene {value.variants.length} variantes; cada una puede tener sus medidas. Las variantes y sus precios se gestionan en la ficha estándar de Medusa.</Text>
-                <table className="mt-2 w-full text-sm">
-                  <thead><tr className="text-left text-xs text-ui-fg-subtle"><th className="py-1 pr-2">Variante</th><th className="py-1 pr-2">Largo</th><th className="py-1 pr-2">Profundidad</th><th className="py-1">Altura</th></tr></thead>
-                  <tbody>
-                    {value.variants.map((v, i) => (
-                      <tr key={v.id}>
-                        <td className="py-1 pr-2">{v.title}{v.sku ? <span className="ml-1 font-mono text-[11px] text-ui-fg-muted">{v.sku}</span> : null}</td>
-                        {(["length", "width", "height"] as const).map((k) => (
-                          <td key={k} className="py-1 pr-2">
-                            <Input size="small" type="number" min={0} step="0.1" value={v[k] ?? ""} onChange={(e) => onChange({ ...value, variants: value.variants.map((x, j) => (j === i ? { ...x, [k]: e.target.value ? Number(e.target.value) : null } : x)) })} />
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <Field label="Nombre de la opción" hint="Cómo se llama lo que cambia entre variantes; aparece en la web como selector.">
+                <Input size="small" className="max-w-xs" value={value.optionTitle} onChange={(e) => onChange({ ...value, optionTitle: e.target.value })} placeholder="Medida" />
+              </Field>
             )}
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-xs text-ui-fg-subtle">
+                    <th className="py-1 pr-2">Variante</th><th className="py-1 pr-2">Referencia (SKU)</th><th className="py-1 pr-2">Precio B/.</th>
+                    {value.variants.length > 1 && (<><th className="py-1 pr-2">Largo</th><th className="py-1 pr-2">Prof.</th><th className="py-1 pr-2">Alto</th></>)}
+                    <th className="py-1" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {value.variants.map((v, i) => {
+                    const setV = (patch: Partial<VariantRow>) => onChange({ ...value, variants: value.variants.map((x, j) => (j === i ? { ...x, ...patch } : x)) })
+                    return (
+                      <tr key={v.id || `new-${i}`}>
+                        <td className="py-1 pr-2"><Input size="small" value={v.title} onChange={(e) => setV({ title: e.target.value })} placeholder={value.variants.length > 1 ? "120 × 60 × 90 cm" : "Estándar"} /></td>
+                        <td className="py-1 pr-2"><Input size="small" value={v.sku} onChange={(e) => setV({ sku: e.target.value })} placeholder="KM-VET-…" /></td>
+                        <td className="py-1 pr-2"><Input size="small" type="number" min={0} step="0.01" inputMode="decimal" value={v.price} onChange={(e) => setV({ price: e.target.value })} placeholder="0.00" /></td>
+                        {value.variants.length > 1 && (["length", "width", "height"] as const).map((k) => (
+                          <td key={k} className="py-1 pr-2"><Input size="small" type="number" min={0} step="0.1" value={v[k]} onChange={(e) => setV({ [k]: e.target.value } as Partial<VariantRow>)} /></td>
+                        ))}
+                        <td className="py-1 text-right">
+                          <Button size="small" variant="transparent" type="button" onClick={() => onChange({ ...value, variants: value.variants.filter((_, j) => j !== i) })} disabled={value.variants.length === 1}><Trash /></Button>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <div>
+              <Button size="small" variant="secondary" type="button" onClick={() => onChange({ ...value, optionTitle: value.variants.length === 1 && value.optionTitle === "Modelo" ? "Medida" : value.optionTitle, variants: [...value.variants, { id: "", title: "", sku: "", price: "", length: "", width: "", height: "" }] })}><Plus /> Agregar variante</Button>
+            </div>
+            {value.showPrice && value.variants.some((v) => !v.price) && <Text size="xsmall" className="text-ui-fg-subtle">Las variantes sin precio se muestran con "Solicitar cotización".</Text>}
           </div>
 
           <div className="flex flex-col gap-3 border-t border-ui-border-base pt-5">
@@ -243,13 +268,19 @@ export default function WebProductForm({ value, onChange, categories, materials,
                   <Switch size="small" checked={value.showPrice} onCheckedChange={(v) => onChange({ ...value, showPrice: v })} />
                   <Text size="small">Mostrar precio en la web</Text>
                 </label>
-                {value.showPrice && value.variants.length <= 1 && (
-                  <Field label="Precio de referencia (B/.)" hint="Precio de una unidad, sin ITBMS.">
-                    <Input size="small" type="number" min={0} step="0.01" inputMode="decimal" placeholder="925.00" {...text("price")} />
-                  </Field>
+                {value.showPrice && (
+                  <Text size="xsmall" className="text-ui-fg-subtle">
+                    {value.variants.length > 1 ? `Se muestra "Desde" con el menor de los ${value.variants.length} precios de la tabla de variantes (bloque 02).` : value.variants[0]?.price ? `Precio de referencia: B/. ${value.variants[0].price}` : "Indique el precio en la tabla de variantes (bloque 02)."}
+                  </Text>
                 )}
-                {value.showPrice && value.variants.length > 1 && (
-                  <Text size="xsmall" className="text-ui-fg-subtle">Los precios de las {value.variants.length} variantes se editan en la ficha estándar de Medusa.</Text>
+                <label className="flex items-center gap-2">
+                  <Switch size="small" checked={value.featured} onCheckedChange={(v) => onChange({ ...value, featured: v })} />
+                  <Text size="small">Destacado en el home</Text>
+                </label>
+                {value.featured && (
+                  <Field label="Orden en el home" hint="Menor número primero.">
+                    <Input size="small" type="number" min={0} className="max-w-[8rem]" value={value.homeOrder} onChange={(e) => onChange({ ...value, homeOrder: e.target.value })} placeholder="1" />
+                  </Field>
                 )}
               </div>
             </div>

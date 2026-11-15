@@ -2,7 +2,7 @@ import { Badge, Button, Container, Heading, Prompt, Text, toast } from "@medusaj
 import { useEffect, useMemo, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import {
-  STOREFRONT_URL, createRedirect, createWebProduct, defaultSalesChannelId, emptyForm, errorMessage, findByHandle, getWebProduct, listCategories, listMaterials, listRedirects,
+  STOREFRONT_URL, createRedirect, createWebProduct, defaultSalesChannelId, deleteVariant, deleteWebProduct, emptyForm, errorMessage, featuredCollectionId, findByHandle, getWebProduct, listCategories, listMaterials, listRedirects,
   publishProblems, suggestHandle, toForm, toPayload, updateWebProduct, type AdminProduct, type Category, type Material, type WebProductForm as FormValue,
 } from "../lib/web-products"
 import MaterialsDialog from "./materials-dialog"
@@ -17,6 +17,8 @@ export default function WebProductEditor({ productId }: { productId?: string }) 
   const [categories, setCategories] = useState<Category[]>([])
   const [materials, setMaterials] = useState<Material[]>([])
   const [salesChannelId, setSalesChannelId] = useState<string | null>(null)
+  const [collectionId, setCollectionId] = useState<string | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState(false)
   const [previousHandles, setPreviousHandles] = useState<string[]>([])
   const [materialsOpen, setMaterialsOpen] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -24,8 +26,8 @@ export default function WebProductEditor({ productId }: { productId?: string }) 
   const [confirmHandle, setConfirmHandle] = useState<{ from: string; to: string } | null>(null)
 
   useEffect(() => {
-    Promise.all([listCategories(), listMaterials(), defaultSalesChannelId()])
-      .then(([cats, { materials }, sc]) => { setCategories(cats); setMaterials(materials); setSalesChannelId(sc) })
+    Promise.all([listCategories(), listMaterials(), defaultSalesChannelId(), featuredCollectionId().catch(() => null)])
+      .then(([cats, { materials }, sc, col]) => { setCategories(cats); setMaterials(materials); setSalesChannelId(sc); setCollectionId(col) })
       .catch((e) => toast.error(errorMessage(e, "No se pudieron cargar categorías y materiales")))
   }, [])
 
@@ -51,9 +53,12 @@ export default function WebProductEditor({ productId }: { productId?: string }) 
     const handle = form.handle.trim() || suggestHandle(form)
     const clash = (await findByHandle(handle)).filter((p) => p.id !== product?.id)
     if (clash.length) { toast.error(`La URL "${handle}" ya la usa otro producto. Cambie la URL del producto.`); return }
-    const body = toPayload({ ...form, handle }, category, salesChannelId, product)
+    if (form.featured && !collectionId) { toast.error("No existe la colección \"destacados\" en Medusa; cree la colección o desactive Destacado"); return }
+    const body = toPayload({ ...form, handle }, category, salesChannelId, product, collectionId)
     setBusy(true)
     try {
+      // Variants removed in the form are deleted explicitly before the update
+      if (product) for (const v of product.variants || []) if (!form.variants.some((r) => r.id === v.id)) await deleteVariant(product.id, v.id)
       const { product: saved } = product ? await updateWebProduct(product.id, body) : await createWebProduct(body)
       if (product && product.status === "published" && product.handle !== saved.handle) {
         await createRedirect(product.handle, saved.handle, saved.id)
@@ -104,6 +109,7 @@ export default function WebProductEditor({ productId }: { productId?: string }) 
           {!isNew && product && (
             <Button size="small" variant="secondary" asChild><a href={`/app/products/${product.id}`}>Ficha estándar de Medusa</a></Button>
           )}
+          {!isNew && product && <Button size="small" variant="danger" onClick={() => setConfirmDelete(true)}>Eliminar</Button>}
           <Button size="small" variant="secondary" onClick={() => navigate("/productos-web")}>Volver</Button>
           <Button size="small" isLoading={busy} onClick={save} disabled={!dirty && !isNew}>{value.status === "published" ? "Guardar y publicar" : "Guardar borrador"}</Button>
         </div>
@@ -121,6 +127,19 @@ export default function WebProductEditor({ productId }: { productId?: string }) 
       />
 
       <MaterialsDialog open={materialsOpen} onOpenChange={setMaterialsOpen} materials={materials} onChanged={setMaterials} />
+
+      <Prompt open={confirmDelete} onOpenChange={setConfirmDelete}>
+        <Prompt.Content>
+          <Prompt.Header>
+            <Prompt.Title>Eliminar "{product?.title}"</Prompt.Title>
+            <Prompt.Description>Se borra el producto, sus variantes y su página en la web. No se puede deshacer. Si solo quiere ocultarlo, use "Guardar como borrador" o el estado "No disponible".</Prompt.Description>
+          </Prompt.Header>
+          <Prompt.Footer>
+            <Prompt.Cancel>Cancelar</Prompt.Cancel>
+            <Prompt.Action onClick={async () => { if (!product) return; try { await deleteWebProduct(product.id); toast.success("Producto eliminado"); navigate("/productos-web") } catch (e) { toast.error(errorMessage(e, "No se pudo eliminar")) } }}>Eliminar definitivamente</Prompt.Action>
+          </Prompt.Footer>
+        </Prompt.Content>
+      </Prompt>
 
       <Prompt open={!!confirmHandle} onOpenChange={(o) => { if (!o) setConfirmHandle(null) }}>
         <Prompt.Content>
