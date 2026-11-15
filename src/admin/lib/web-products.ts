@@ -92,7 +92,13 @@ export const suggestSubtitle = (f: Pick<WebProductForm, "material">, category: C
   return `${type} en ${lower(f.material)}`
 }
 
-export const suggestSeoTitle = (f: Pick<WebProductForm, "title">) => (f.title.trim() ? `${f.title.trim()} en Panamá | KARVEN Medical` : "")
+/** "<nombre> en Panamá | KARVEN Medical", dropping "en Panamá" when the title is long (target ≤ 60 characters). */
+export const suggestSeoTitle = (f: Pick<WebProductForm, "title">) => {
+  const t = f.title.trim()
+  if (!t) return ""
+  const full = `${t} en Panamá | KARVEN Medical`
+  return full.length <= 60 ? full : `${t} | KARVEN Medical`
+}
 
 export const suggestSeoDescription = (f: Pick<WebProductForm, "title" | "material" | "availability" | "description">) => {
   const title = f.title.trim()

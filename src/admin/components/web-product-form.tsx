@@ -277,7 +277,7 @@ export default function WebProductForm({ value, onChange, categories, materials,
             <Field
               label="URL del producto"
               hint={`${STOREFRONT_URL}/mobiliario/${value.handle || "…"}${!isNew && value.status === "published" ? " · Cambiarla en un producto publicado crea una redirección permanente desde la URL anterior." : ""}`}
-              right={<Auto custom={value.handleCustom || (!autoHandle && !isNew)} onRestore={() => apply({ handleCustom: false, handle: suggestHandle(value) })} />}
+              right={autoHandle ? <Auto custom={value.handleCustom} onRestore={() => apply({ handleCustom: false, handle: suggestHandle(value) })} /> : <Badge size="2xsmall" color="blue">URL publicada</Badge>}
             >
               <Input value={value.handle} onChange={(e) => onChange({ ...value, handle: slugify(e.target.value.replace(/\s+/g, "-")), handleCustom: true })} placeholder="se-genera-desde-el-nombre" />
             </Field>
