@@ -107,7 +107,7 @@ const build = (lib: PdfLib) => {
           <View>
             <Text style={s.customer}>{q.customer_name}</Text>
             {q.customer_company ? <Text style={s.customerSub}>{q.customer_company}</Text> : null}
-            {q.customer_ruc ? <Text style={s.customerSub}>R.U.C. {q.customer_ruc}</Text> : null}
+            {q.customer_ruc ? <Text style={s.customerSub}>{/^d{1,2}-d/.test(String(q.customer_ruc)) || String(q.customer_ruc).length <= 9 ? "Cédula / R.U.C." : "R.U.C."} {q.customer_ruc}</Text> : null}
             {q.contact_name ? <Text style={s.customerSub}>Atención: {q.contact_name}</Text> : null}
             {q.customer_address ? <Text style={s.customerSub}>{q.customer_address}</Text> : null}
           </View>
