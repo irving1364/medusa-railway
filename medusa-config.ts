@@ -38,6 +38,7 @@ module.exports = defineConfig({
     // Portfolio projects ("Proyectos" on the storefront) with editorial workflow and history
     { resolve: "./src/modules/project" },
     { resolve: "./src/modules/catalog" },
+    { resolve: "./src/modules/quote" },
     {
       // Local file storage. Files land in <cwd>/static (mount a Railway volume there) and are
       // served at <PUBLIC_URL>/static/<name>. Used for product datasheet PDFs uploaded from the admin.

@@ -2,6 +2,7 @@ import { defineMiddlewares, validateAndTransformBody } from "@medusajs/framework
 import multer from "multer"
 import { CreateProjectSchema, UpdateProjectSchema, ProjectStatusSchema } from "./admin/projects/validators"
 import { CreateMaterialSchema, UpdateMaterialSchema, CreateRedirectSchema } from "./admin/materials/validators"
+import { CreateQuoteSchema, UpdateQuoteSchema, QuoteStatusSchema, SendQuoteSchema, ProfileSchema } from "./admin/quotes/validators"
 
 // Files stay in memory (same approach as the core /admin/uploads route) and are handed to the file module as base64.
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024, files: 30 } })
@@ -15,5 +16,10 @@ export default defineMiddlewares({
     { matcher: "/admin/materials/:id", method: "POST", middlewares: [validateAndTransformBody(UpdateMaterialSchema)] },
     { matcher: "/admin/product-redirects", method: "POST", middlewares: [validateAndTransformBody(CreateRedirectSchema)] },
     { matcher: "/admin/web-uploads", method: "POST", middlewares: [upload.array("files")] },
+    { matcher: "/admin/quotes", method: "POST", middlewares: [validateAndTransformBody(CreateQuoteSchema)] },
+    { matcher: "/admin/quotes/:id", method: "POST", middlewares: [validateAndTransformBody(UpdateQuoteSchema)] },
+    { matcher: "/admin/quotes/:id/status", method: "POST", middlewares: [validateAndTransformBody(QuoteStatusSchema)] },
+    { matcher: "/admin/quotes/:id/send", method: "POST", middlewares: [validateAndTransformBody(SendQuoteSchema)] },
+    { matcher: "/admin/quote-profiles/:store", method: "POST", middlewares: [validateAndTransformBody(ProfileSchema)] },
   ],
 })
