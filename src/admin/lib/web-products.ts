@@ -287,6 +287,8 @@ export const defaultSalesChannelId = async (): Promise<string | null> => {
   return sales_channels?.find((s) => /default/i.test(s.name))?.id || sales_channels?.[0]?.id || null
 }
 
+export const productPreviewUrl = (handle: string) => api<{ url: string | null }>(`/admin/product-preview-url/${encodeURIComponent(handle)}`)
+
 export const listMaterials = () => api<{ materials: Material[] }>("/admin/materials")
 export const createMaterial = (name: string) => api<{ material: Material }>("/admin/materials", { method: "POST", body: { name } })
 export const updateMaterial = (id: string, body: Partial<Pick<Material, "name" | "active" | "sort_order">>) => api<{ material: Material }>(`/admin/materials/${id}`, { method: "POST", body })

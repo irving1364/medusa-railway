@@ -2,7 +2,7 @@ import { Badge, Button, Container, Heading, Prompt, Text, toast } from "@medusaj
 import { useEffect, useMemo, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import {
-  STOREFRONT_URL, createRedirect, createWebProduct, defaultSalesChannelId, deleteVariant, deleteWebProduct, emptyForm, errorMessage, featuredCollectionId, findByHandle, getWebProduct, listCategories, listMaterials, listRedirects,
+  STOREFRONT_URL, createRedirect, createWebProduct, defaultSalesChannelId, deleteVariant, deleteWebProduct, emptyForm, errorMessage, featuredCollectionId, findByHandle, getWebProduct, listCategories, listMaterials, listRedirects, productPreviewUrl,
   publishProblems, suggestHandle, toForm, toPayload, updateWebProduct, type AdminProduct, type Category, type Material, type WebProductForm as FormValue,
 } from "../lib/web-products"
 import MaterialsDialog from "./materials-dialog"
@@ -20,6 +20,7 @@ export default function WebProductEditor({ productId }: { productId?: string }) 
   const [collectionId, setCollectionId] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [previousHandles, setPreviousHandles] = useState<string[]>([])
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [materialsOpen, setMaterialsOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -38,6 +39,11 @@ export default function WebProductEditor({ productId }: { productId?: string }) 
       .catch((e) => setError(errorMessage(e, "Producto no encontrado")))
     listRedirects(productId).then(({ redirects }) => setPreviousHandles(redirects.map((r) => r.from_handle))).catch(() => {})
   }, [productId])
+
+  useEffect(() => {
+    if (!product || product.status === "published") { setPreviewUrl(null); return }
+    productPreviewUrl(product.handle).then(({ url }) => setPreviewUrl(url)).catch(() => setPreviewUrl(null))
+  }, [product])
 
   const dirty = useMemo(() => !!value && (isNew ? JSON.stringify(value) !== JSON.stringify(emptyForm()) : !!product && JSON.stringify(toForm(product)) !== JSON.stringify(value)), [value, product, isNew])
 
@@ -105,6 +111,9 @@ export default function WebProductEditor({ productId }: { productId?: string }) 
         <div className="flex flex-wrap gap-2">
           {!isNew && product?.status === "published" && (
             <Button size="small" variant="secondary" asChild><a href={`${STOREFRONT_URL}/mobiliario/${product.handle}`} target="_blank" rel="noreferrer">Ver en la web</a></Button>
+          )}
+          {!isNew && product && product.status !== "published" && previewUrl && (
+            <Button size="small" variant="secondary" asChild><a href={previewUrl} target="_blank" rel="noreferrer">Vista previa en la web</a></Button>
           )}
           {!isNew && product && (
             <Button size="small" variant="secondary" asChild><a href={`/app/products/${product.id}`}>Ficha estándar de Medusa</a></Button>
