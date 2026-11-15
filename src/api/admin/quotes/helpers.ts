@@ -42,7 +42,8 @@ export const effectiveStatus = (q: Loose): string => {
   return q.status
 }
 
-export const serialize = (q: Loose) => ({ ...q, effective_status: effectiveStatus(q), totals: computeTotals((q.lines || []) as QuoteLine[]) })
+/** Numeric columns come back from Postgres as strings; the admin and emails expect numbers. */
+export const serialize = (q: Loose) => ({ ...q, subtotal: Number(q.subtotal) || 0, discount_total: Number(q.discount_total) || 0, tax_total: Number(q.tax_total) || 0, total: Number(q.total) || 0, version: Number(q.version) || 1, effective_status: effectiveStatus(q), totals: computeTotals((q.lines || []) as QuoteLine[]) })
 
 const toDate = (v: unknown): Date | null => {
   if (!v) return null
