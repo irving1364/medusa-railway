@@ -3,13 +3,14 @@ import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import ProjectForm from "../../../components/project-form"
 import { createProject, emptyProject, errorMessage, type ProjectInput } from "../../../lib/projects"
+import { defaultCompanyCode, getCompany } from "../../../lib/companies"
 
 const SITE_URL = "https://karvenmedical.com"
 
 /** Creates a draft; the editorial flow continues on the edit page. */
 const NewProjectPage = () => {
   const navigate = useNavigate()
-  const [value, setValue] = useState<ProjectInput>(emptyProject())
+  const [value, setValue] = useState<ProjectInput>({ ...emptyProject(), company: defaultCompanyCode(getCompany()) })
   const [busy, setBusy] = useState(false)
 
   const save = async () => {

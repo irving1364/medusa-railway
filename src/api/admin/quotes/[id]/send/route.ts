@@ -4,7 +4,7 @@ import { MedusaError } from "@medusajs/framework/utils"
 import { Resend } from "resend"
 import { renderQuotePdf } from "../../../../../modules/quote/pdf"
 import type { QuoteStore } from "../../../../../modules/quote/service"
-import { actorEmail, fmtDate, fmtMoney, quoteService, serialize, type Loose } from "../../helpers"
+import { actorEmail, fmtDate, fmtMoney, identityFor, quoteService, serialize, type Loose } from "../../helpers"
 
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c] as string))
 const paragraphs = (t: string) => t.split(/\n{2,}/).map((p) => `<p style="margin:0 0 12px">${esc(p).replace(/\n/g, "<br>")}</p>`).join("")
@@ -20,7 +20,7 @@ export async function POST(req: AuthenticatedMedusaRequest<{ to: string[]; cc?: 
   if (quote.status === "approved" || quote.status === "rejected") throw new MedusaError(MedusaError.Types.NOT_ALLOWED, "La cotización ya está cerrada; reábrala para enviarla de nuevo")
   if (!process.env.RESEND_API_KEY) throw new MedusaError(MedusaError.Types.NOT_ALLOWED, "El envío de correo no está configurado (RESEND_API_KEY)")
 
-  const profile = await service.profileFor(quote.store as QuoteStore)
+  const profile = await identityFor(req, quote.store as QuoteStore)
   const { to, cc, subject, message } = req.validatedBody
   const pdf = await renderQuotePdf(quote, profile)
   const filename = `Cotizacion-${quote.number}${quote.version > 1 ? `-v${quote.version}` : ""}.pdf`

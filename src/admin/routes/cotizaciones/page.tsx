@@ -1,9 +1,11 @@
 import { defineRouteConfig } from "@medusajs/admin-sdk"
 import { DocumentText } from "@medusajs/icons"
-import { Badge, Button, Container, Heading, Input, Select, Table, Text, toast } from "@medusajs/ui"
+import { Badge, Button, Container, Heading, Input, Table, Text, toast } from "@medusajs/ui"
 import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
-import { STATUS, STORES, errorMessage, fmtDate, listQuotes, money, storeLabel, type EffectiveStatus, type Quote } from "../../lib/quotes"
+import { STATUS, errorMessage, fmtDate, listQuotes, money, storeLabel, type EffectiveStatus, type Quote } from "../../lib/quotes"
+import CompanySwitcher from "../../components/company-switcher"
+import { useCompany } from "../../lib/companies"
 
 type Tab = "all" | EffectiveStatus
 const TABS: { key: Tab; label: string }[] = [
@@ -19,7 +21,7 @@ const TABS: { key: Tab; label: string }[] = [
 const QuotesPage = () => {
   const navigate = useNavigate()
   const [tab, setTab] = useState<Tab>("all")
-  const [store, setStore] = useState<string>("all")
+  const [store] = useCompany()
   const [q, setQ] = useState("")
   const [rows, setRows] = useState<Quote[]>([])
   const [count, setCount] = useState(0)
@@ -43,7 +45,8 @@ const QuotesPage = () => {
           <Heading level="h1">Cotizaciones</Heading>
           <Text size="small" className="text-ui-fg-subtle">Propuestas comerciales de FABMETAL y KARVEN con PDF y envío por correo.</Text>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <CompanySwitcher compact />
           <Button size="small" variant="secondary" onClick={() => navigate("/cotizaciones/configuracion")}>Configuración</Button>
           <Button size="small" onClick={() => navigate("/cotizaciones/new")}>Nueva cotización</Button>
         </div>
@@ -51,10 +54,6 @@ const QuotesPage = () => {
       <div className="flex flex-wrap items-center gap-2 px-6 py-3">
         <div className="flex flex-wrap gap-1">{TABS.map((t) => <Button key={t.key} size="small" variant={tab === t.key ? "primary" : "transparent"} onClick={() => setTab(t.key)}>{t.label}</Button>)}</div>
         <span className="flex-1" />
-        <Select value={store} onValueChange={setStore} size="small">
-          <Select.Trigger className="w-44"><Select.Value /></Select.Trigger>
-          <Select.Content><Select.Item value="all">Ambas tiendas</Select.Item>{STORES.map((s) => <Select.Item key={s.value} value={s.value}>{s.label}</Select.Item>)}</Select.Content>
-        </Select>
         <Input size="small" placeholder="Número, cliente o empresa" value={q} onChange={(e) => setQ(e.target.value)} className="max-w-xs" />
       </div>
       <Table>

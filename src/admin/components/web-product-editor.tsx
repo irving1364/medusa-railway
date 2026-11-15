@@ -5,6 +5,7 @@ import {
   STOREFRONT_URL, createRedirect, createWebProduct, defaultSalesChannelId, deleteVariant, deleteWebProduct, emptyForm, errorMessage, featuredCollectionId, findByHandle, getWebProduct, listCategories, listMaterials, listRedirects, productPreviewUrl,
   publishProblems, suggestHandle, toForm, toPayload, updateWebProduct, type AdminProduct, type Category, type Material, type WebProductForm as FormValue,
 } from "../lib/web-products"
+import { defaultCompanyCode, listCompanies, useCompany, type Company } from "../lib/companies"
 import MaterialsDialog from "./materials-dialog"
 import WebProductForm from "./web-product-form"
 
@@ -18,6 +19,8 @@ export default function WebProductEditor({ productId }: { productId?: string }) 
   const [materials, setMaterials] = useState<Material[]>([])
   const [salesChannelId, setSalesChannelId] = useState<string | null>(null)
   const [collectionId, setCollectionId] = useState<string | null>(null)
+  const [companies, setCompanies] = useState<Company[]>([])
+  const [currentCompany] = useCompany()
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [previousHandles, setPreviousHandles] = useState<string[]>([])
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
@@ -29,6 +32,12 @@ export default function WebProductEditor({ productId }: { productId?: string }) 
   useEffect(() => {
     Promise.all([listCategories(), listMaterials(), defaultSalesChannelId(), featuredCollectionId().catch(() => null)])
       .then(([cats, { materials }, sc, col]) => { setCategories(cats); setMaterials(materials); setSalesChannelId(sc); setCollectionId(col) })
+    listCompanies().then(({ companies }) => {
+      setCompanies(companies)
+      // New products start on the web of the company selected in the switcher
+      const mine = companies.find((c) => c.code === defaultCompanyCode(currentCompany))?.sales_channel_id
+      if (isNew && mine) setValue((v) => (v && !v.salesChannelIds.length ? { ...v, salesChannelIds: [mine] } : v))
+    }).catch(() => {})
       .catch((e) => toast.error(errorMessage(e, "No se pudieron cargar categorías y materiales")))
   }, [])
 
@@ -133,6 +142,7 @@ export default function WebProductEditor({ productId }: { productId?: string }) 
         isNew={isNew}
         productId={product?.id}
         previousHandles={previousHandles}
+        companies={companies}
       />
 
       <MaterialsDialog open={materialsOpen} onOpenChange={setMaterialsOpen} materials={materials} onChanged={setMaterials} />

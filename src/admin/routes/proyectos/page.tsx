@@ -4,6 +4,8 @@ import { Badge, Button, Container, Heading, Input, Table, Text, toast } from "@m
 import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { STATUS, errorMessage, fmtDate, lineLabel, listProjects, restoreProject, type Project, type ProjectStatus } from "../../lib/projects"
+import CompanySwitcher from "../../components/company-switcher"
+import { companyColor, companyLabel, useCompany } from "../../lib/companies"
 
 type Tab = "all" | ProjectStatus | "archived"
 const TABS: { key: Tab; label: string }[] = [
@@ -24,17 +26,18 @@ const ProjectsPage = () => {
   const [count, setCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [tick, setTick] = useState(0)
+  const [company] = useCompany()
 
   useEffect(() => {
     setLoading(true)
     const t = setTimeout(() => {
-      listProjects({ q: q.trim() || undefined, status: tab !== "all" && tab !== "archived" ? tab : undefined, deleted: tab === "archived" ? 1 : undefined, limit: 100 })
+      listProjects({ q: q.trim() || undefined, status: tab !== "all" && tab !== "archived" ? tab : undefined, deleted: tab === "archived" ? 1 : undefined, company: company === "all" ? undefined : company, limit: 100 })
         .then(({ projects, count }) => { setRows(projects); setCount(count) })
         .catch((e) => toast.error(errorMessage(e, "No se pudo cargar la lista")))
         .finally(() => setLoading(false))
     }, q ? 250 : 0)
     return () => clearTimeout(t)
-  }, [tab, q, tick])
+  }, [tab, q, tick, company])
 
   const restore = async (p: Project) => {
     try {
@@ -53,7 +56,7 @@ const ProjectsPage = () => {
           <Heading level="h1">Proyectos</Heading>
           <Text size="small" className="text-ui-fg-subtle">Portafolio de trabajos realizados. Solo los publicados se ven en la web.</Text>
         </div>
-        <Button size="small" onClick={() => navigate("/proyectos/new")}>Nuevo proyecto</Button>
+        <div className="flex flex-wrap items-center gap-2"><CompanySwitcher compact /><Button size="small" onClick={() => navigate("/proyectos/new")}>Nuevo proyecto</Button></div>
       </div>
       <div className="flex flex-wrap items-center gap-2 px-6 py-3">
         <div className="flex flex-wrap gap-1">
@@ -68,6 +71,7 @@ const ProjectsPage = () => {
         <Table.Header>
           <Table.Row>
             <Table.HeaderCell>Proyecto</Table.HeaderCell>
+            <Table.HeaderCell>Empresa</Table.HeaderCell>
             <Table.HeaderCell>Línea</Table.HeaderCell>
             <Table.HeaderCell>Estado</Table.HeaderCell>
             <Table.HeaderCell>Actualizado</Table.HeaderCell>
@@ -86,6 +90,7 @@ const ProjectsPage = () => {
                   </div>
                 </div>
               </Table.Cell>
+              <Table.Cell><Badge size="2xsmall" color={companyColor(p.company)}>{companyLabel(p.company)}</Badge></Table.Cell>
               <Table.Cell>{lineLabel(p.line)}</Table.Cell>
               <Table.Cell><Badge size="2xsmall" color={STATUS[p.status].color}>{STATUS[p.status].label}</Badge></Table.Cell>
               <Table.Cell>{fmtDate(p.updated_at)}</Table.Cell>

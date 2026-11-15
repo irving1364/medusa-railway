@@ -9,6 +9,7 @@ export interface Project {
   title: string
   slug: string
   line: ProjectLine
+  company: "fabmetal" | "karven"
   specialty: string | null
   work_type: string | null
   client_name: string | null
@@ -68,14 +69,14 @@ export const STEPS: { status: ProjectStatus; label: string }[] = [
 ]
 
 export const FIELD_LABELS: Record<string, string> = {
-  title: "Título", slug: "URL", line: "Línea", specialty: "Especialidad", work_type: "Tipo de trabajo",
+  title: "Título", slug: "URL", line: "Línea", company: "Empresa", specialty: "Especialidad", work_type: "Tipo de trabajo",
   client_name: "Cliente", location: "Ubicación", year: "Año", summary: "Resumen", client_need: "Necesidad del cliente",
   solution: "Solución desarrollada", fabrication: "Fabricación y verificación", cover_url: "Portada", cover_alt: "Texto alternativo de portada",
   gallery: "Galería", related_product_ids: "Productos relacionados", seo_title: "Título SEO", seo_description: "Descripción SEO", sort_order: "Orden",
 }
 
 export const emptyProject = (): ProjectInput => ({
-  title: "", slug: "", line: "medico", specialty: "", work_type: "", client_name: "", location: "", year: null, summary: "",
+  title: "", slug: "", line: "medico", company: "karven", specialty: "", work_type: "", client_name: "", location: "", year: null, summary: "",
   client_need: "", solution: "", fabrication: "", cover_url: null, cover_alt: "", gallery: [], related_product_ids: [],
   seo_title: "", seo_description: "", sort_order: 0,
 })

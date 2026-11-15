@@ -57,6 +57,8 @@ export interface WebProductForm {
   /** Shown on the home rail (collection "destacados") */
   featured: boolean
   homeOrder: string
+  /** Sales channels = companies whose web shows the product */
+  salesChannelIds: string[]
   seoTitle: string
   seoTitleCustom: boolean
   handle: string
@@ -71,7 +73,7 @@ export const emptyForm = (): WebProductForm => ({
   title: "", categoryId: null, subtitle: "", subtitleCustom: false, material: "", description: "",
   dimLength: "", dimDepth: "", dimHeight: "", dimAdjustable: false, dimLengthMax: "", dimDepthMax: "", dimHeightMax: "", dimNote: "", features: [], optionTitle: "Modelo", variants: [{ id: "", title: "Estándar", sku: "", price: "", length: "", width: "", height: "" }],
   images: [], thumbnail: null, datasheetUrl: null, datasheetName: null,
-  availability: "on_order", showPrice: false, featured: false, homeOrder: "", seoTitle: "", seoTitleCustom: false, handle: "", handleCustom: false,
+  availability: "on_order", showPrice: false, featured: false, homeOrder: "", salesChannelIds: [], seoTitle: "", seoTitleCustom: false, handle: "", handleCustom: false,
   seoDescription: "", seoDescriptionCustom: false, status: "draft", extraMeta: {},
 })
 
@@ -177,6 +179,7 @@ export const toForm = (p: AdminProduct): WebProductForm => {
     availability: (["available", "on_order", "custom", "unavailable"].includes(str(m.availability)) ? (m.availability as Availability) : "on_order"),
     showPrice: m.show_price === true,
     featured: p.collection?.handle === FEATURED_COLLECTION_HANDLE,
+    salesChannelIds: (p.sales_channels || []).map((c) => c.id),
     homeOrder: numStr(m.home_order),
     seoTitle: str(m.seo_title), seoTitleCustom: m.seo_title_custom === true,
     handle: p.handle || "", handleCustom: m.handle_custom === true,
@@ -241,7 +244,7 @@ export const toPayload = (f: WebProductForm, category: Category | null, salesCha
     variants,
     collection_id: f.featured && featuredCollectionId ? featuredCollectionId : null,
   }
-  if (!existing) body.sales_channels = salesChannelId ? [{ id: salesChannelId }] : []
+  body.sales_channels = (f.salesChannelIds.length ? f.salesChannelIds : salesChannelId ? [salesChannelId] : []).map((id) => ({ id }))
   return body
 }
 
@@ -253,6 +256,7 @@ export const publishProblems = (f: WebProductForm): string[] => {
   if (!f.description.trim()) problems.push("Descripción")
   if (!f.images.length) problems.push("Fotografía principal")
   if (!f.availability) problems.push("Disponibilidad")
+  if (!f.salesChannelIds.length) problems.push("Empresa (en qué web se muestra)")
   const titles = f.variants.map((v) => v.title.trim()).filter(Boolean)
   if (new Set(titles.map((t) => t.toLowerCase())).size !== titles.length) problems.push("Variantes con el mismo nombre")
   return problems
@@ -265,8 +269,8 @@ export const PRODUCT_FIELDS = "id,title,subtitle,description,handle,status,thumb
 const api = <T,>(path: string, init: { method?: string; body?: unknown; query?: Record<string, string | number | undefined> } = {}) =>
   sdk.client.fetch<T>(path, { method: init.method || "GET", body: init.body, query: init.query })
 
-export const listWebProducts = (query: { q?: string; status?: "draft" | "published"; limit?: number; offset?: number }) =>
-  sdk.admin.product.list({ ...query, fields: "id,title,subtitle,handle,status,thumbnail,material,metadata,updated_at,*categories,*variants,*variants.prices", order: "-updated_at" } as HttpTypes.AdminProductListParams)
+export const listWebProducts = (query: { q?: string; status?: "draft" | "published"; limit?: number; offset?: number; sales_channel_id?: string[] }) =>
+  sdk.admin.product.list({ ...query, fields: "id,title,subtitle,handle,status,thumbnail,material,metadata,updated_at,*categories,*variants,*variants.prices,*sales_channels", order: "-updated_at" } as HttpTypes.AdminProductListParams)
 export const getWebProduct = (id: string) => sdk.admin.product.retrieve(id, { fields: PRODUCT_FIELDS })
 export const findByHandle = async (handle: string) => (await sdk.admin.product.list({ handle, fields: "id,handle" } as HttpTypes.AdminProductListParams)).products
 export const createWebProduct = (body: Record<string, unknown>) => sdk.admin.product.create(body as unknown as HttpTypes.AdminCreateProduct, { fields: PRODUCT_FIELDS })

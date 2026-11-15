@@ -13,6 +13,7 @@ export const ProjectBodySchema = z.object({
   title: z.string().trim().min(1, "El título es obligatorio").max(200),
   slug: z.string().trim().max(120).nullable().optional(),
   line: z.enum(["medico", "veterinario", "tecnico"]),
+  company: z.enum(["fabmetal", "karven"]).optional(),
   specialty: nullableText(200),
   work_type: nullableText(200),
   client_name: nullableText(200),

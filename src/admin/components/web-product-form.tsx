@@ -5,6 +5,7 @@ import {
   AVAILABILITY, STOREFRONT_URL, dimensionsLine, publishProblems, slugify, suggestAlt, suggestHandle, suggestSeoDescription, suggestSeoTitle, suggestSubtitle,
   type Category, type Material, type VariantRow, type WebProductForm,
 } from "../lib/web-products"
+import type { Company } from "../lib/companies"
 import FeaturesEditor from "./features-editor"
 import ProductMedia from "./product-media"
 
@@ -18,6 +19,7 @@ interface Props {
   isNew: boolean
   productId?: string
   previousHandles?: string[]
+  companies?: Company[]
 }
 
 const SECTIONS = [
@@ -63,7 +65,7 @@ const Section = ({ s, children }: { s: (typeof SECTIONS)[number]; children: Reac
 )
 
 /** The four-block product form from the specification. Suggestions regenerate until a field is edited by hand. */
-export default function WebProductForm({ value, onChange, categories, materials, onManageMaterials, isNew, productId, previousHandles = [] }: Props) {
+export default function WebProductForm({ value, onChange, categories, materials, onManageMaterials, isNew, productId, previousHandles = [], companies = [] }: Props) {
   const lines = useMemo(() => categories.filter((c) => !c.parent_category_id), [categories])
   const category = categories.find((c) => c.id === value.categoryId) || null
   const lineId = category?.parent_category_id || (category && !category.parent_category_id ? category.id : null)
@@ -255,6 +257,24 @@ export default function WebProductForm({ value, onChange, categories, materials,
       <Section s={SECTIONS[3]}>
         <div className="flex flex-col gap-6">
           <div className="flex flex-col gap-3">
+            <Label size="small" weight="plus">Empresa</Label>
+            <Text size="xsmall" className="text-ui-fg-subtle">En qué web se muestra el producto. Puede estar en las dos.</Text>
+            <div className="flex flex-wrap gap-4">
+              {companies.filter((c) => c.sales_channel_id).map((c) => {
+                const id = c.sales_channel_id as string
+                const on = value.salesChannelIds.includes(id)
+                return (
+                  <label key={c.code} className="flex items-center gap-2">
+                    <Switch size="small" checked={on} onCheckedChange={(v) => apply({ salesChannelIds: v ? [...value.salesChannelIds, id] : value.salesChannelIds.filter((x) => x !== id) })} />
+                    <Text size="small">{c.name}</Text>
+                  </label>
+                )
+              })}
+              {!companies.length && <Text size="xsmall" className="text-ui-fg-subtle">Cargando empresas…</Text>}
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-3 border-t border-ui-border-base pt-5">
             <Label size="small" weight="plus">1. Información comercial</Label>
             <div className="grid gap-4 md:grid-cols-2">
               <Field label="Disponibilidad del producto" required hint={AVAILABILITY.find((a) => a.value === value.availability)?.hint}>

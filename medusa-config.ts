@@ -39,6 +39,7 @@ module.exports = defineConfig({
     { resolve: "./src/modules/project" },
     { resolve: "./src/modules/catalog" },
     { resolve: "./src/modules/quote" },
+    { resolve: "./src/modules/company" },
     {
       // Local file storage. Files land in <cwd>/static (mount a Railway volume there) and are
       // served at <PUBLIC_URL>/static/<name>. Used for product datasheet PDFs uploaded from the admin.

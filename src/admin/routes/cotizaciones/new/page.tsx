@@ -2,18 +2,20 @@ import { Button, Container, Heading, Text, toast } from "@medusajs/ui"
 import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import QuoteForm from "../../../components/quote-form"
+import { defaultCompanyCode, getCompany } from "../../../lib/companies"
 import { createQuote, emptyQuote, errorMessage, listProfiles, toBody, type QuoteInput, type QuoteProfile, type QuoteStore } from "../../../lib/quotes"
 
 /** /cotizaciones/new — the number is assigned on first save. */
 const NewQuotePage = () => {
   const navigate = useNavigate()
   const [profiles, setProfiles] = useState<QuoteProfile[]>([])
-  const [value, setValue] = useState<QuoteInput>(emptyQuote("fabmetal"))
+  const [value, setValue] = useState<QuoteInput>(emptyQuote(defaultCompanyCode(getCompany())))
   const [busy, setBusy] = useState(false)
   const profile = profiles.find((p) => p.store === value.store) || null
 
   useEffect(() => {
-    listProfiles().then(({ profiles }) => { setProfiles(profiles); const p = profiles.find((x) => x.store === "fabmetal") || null; setValue(emptyQuote("fabmetal", p)) }).catch(() => {})
+    const initial = defaultCompanyCode(getCompany())
+    listProfiles().then(({ profiles }) => { setProfiles(profiles); const p = profiles.find((x) => x.store === initial) || null; setValue(emptyQuote(initial, p)) }).catch(() => {})
   }, [])
 
   const changeStore = (next: QuoteInput) => {

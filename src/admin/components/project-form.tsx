@@ -45,6 +45,15 @@ export default function ProjectForm({ value, onChange, siteUrl }: Props) {
               </div>
             </Field>
           </div>
+          <Field label="Empresa" hint="En qué web se publica el proyecto.">
+            <Select value={value.company || "karven"} onValueChange={(v) => set("company", v as ProjectInput["company"])}>
+              <Select.Trigger><Select.Value placeholder="Seleccionar" /></Select.Trigger>
+              <Select.Content>
+                <Select.Item value="fabmetal">FABMETAL</Select.Item>
+                <Select.Item value="karven">KARVEN Medical</Select.Item>
+              </Select.Content>
+            </Select>
+          </Field>
           <Field label="Línea de mobiliario">
             <Select value={value.line} onValueChange={(v) => set("line", v as ProjectInput["line"])}>
               <Select.Trigger><Select.Value placeholder="Seleccionar" /></Select.Trigger>

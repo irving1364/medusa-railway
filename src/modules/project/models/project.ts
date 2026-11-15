@@ -13,6 +13,7 @@ const Project = model.define("project", {
   /** URL segment: karvenmedical.com/proyectos/<slug> */
   slug: model.text().unique(),
   line: model.enum(PROJECT_LINES),
+  company: model.text().default("karven"),
   specialty: model.text().nullable(),
   work_type: model.text().nullable(),
   client_name: model.text().nullable(),

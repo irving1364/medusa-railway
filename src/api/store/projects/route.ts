@@ -12,9 +12,11 @@ export const PUBLIC_FIELDS = [
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
   const service = req.scope.resolve(PROJECT_MODULE) as ProjectModuleService
   const line = String(req.query.line || "").trim()
+  const company = String(req.query.company || "").trim()
   const limit = Math.min(Math.max(Number(req.query.limit) || 100, 1), 200)
   const filters: Record<string, unknown> = { status: "published" }
   if (line) filters.line = line
+  if (company) filters.company = company
   const [projects, count] = await service.listAndCountProjects(filters, {
     select: PUBLIC_FIELDS,
     take: limit,

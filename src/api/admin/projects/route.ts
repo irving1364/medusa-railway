@@ -8,6 +8,7 @@ export async function GET(req: AuthenticatedMedusaRequest, res: MedusaResponse) 
   const q = String(req.query.q || "").trim()
   const status = String(req.query.status || "").trim()
   const line = String(req.query.line || "").trim()
+  const company = String(req.query.company || "").trim()
   const deleted = req.query.deleted === "1" || req.query.deleted === "true"
   const limit = Math.min(Math.max(Number(req.query.limit) || 50, 1), 200)
   const offset = Math.max(Number(req.query.offset) || 0, 0)
@@ -16,6 +17,7 @@ export async function GET(req: AuthenticatedMedusaRequest, res: MedusaResponse) 
   if (q) filters.title = { $ilike: `%${q}%` }
   if (status) filters.status = status
   if (line) filters.line = line
+  if (company) filters.company = company
   if (deleted) filters.deleted_at = { $ne: null }
 
   const [projects, count] = await service.listAndCountProjects(filters, {

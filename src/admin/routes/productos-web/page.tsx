@@ -3,7 +3,9 @@ import { SquaresPlus } from "@medusajs/icons"
 import { Badge, Button, Container, Heading, Input, Table, Text, toast } from "@medusajs/ui"
 import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
+import CompanySwitcher from "../../components/company-switcher"
 import MaterialsDialog from "../../components/materials-dialog"
+import { companyColor, useCompanies, useCompany } from "../../lib/companies"
 import { availabilityLabel, errorMessage, fmtDate, listMaterials, listWebProducts, type AdminProduct, type Material } from "../../lib/web-products"
 
 type Tab = "all" | "draft" | "published"
@@ -23,17 +25,21 @@ const WebProductsPage = () => {
   const [loading, setLoading] = useState(true)
   const [materials, setMaterials] = useState<Material[]>([])
   const [materialsOpen, setMaterialsOpen] = useState(false)
+  const [company] = useCompany()
+  const companies = useCompanies()
+  const channelId = company === "all" ? null : companies.find((c) => c.code === company)?.sales_channel_id || null
+  const companyOf = (channels: { id: string }[] | undefined | null) => companies.filter((c) => (channels || []).some((ch) => ch.id === c.sales_channel_id))
 
   useEffect(() => {
     setLoading(true)
     const t = setTimeout(() => {
-      listWebProducts({ q: q.trim() || undefined, status: tab === "all" ? undefined : tab, limit: 100 })
+      listWebProducts({ q: q.trim() || undefined, status: tab === "all" ? undefined : tab, limit: 100, ...(channelId ? { sales_channel_id: [channelId] } : {}) })
         .then(({ products, count }) => { setRows(products as AdminProduct[]); setCount(count) })
         .catch((e) => toast.error(errorMessage(e, "No se pudo cargar la lista")))
         .finally(() => setLoading(false))
     }, q ? 250 : 0)
     return () => clearTimeout(t)
-  }, [tab, q])
+  }, [tab, q, channelId])
 
   useEffect(() => { listMaterials().then(({ materials }) => setMaterials(materials)).catch(() => {}) }, [])
 
@@ -45,7 +51,8 @@ const WebProductsPage = () => {
             <Heading level="h1">Productos web</Heading>
             <Text size="small" className="text-ui-fg-subtle">Catálogo de karvenmedical.com. Información general, especificaciones, fotografías y SEO en un solo formulario.</Text>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <CompanySwitcher compact />
             <Button size="small" variant="secondary" onClick={() => setMaterialsOpen(true)}>Materiales</Button>
             <Button size="small" onClick={() => navigate("/productos-web/new")}>Nuevo producto</Button>
           </div>
@@ -63,6 +70,7 @@ const WebProductsPage = () => {
           <Table.Header>
             <Table.Row>
               <Table.HeaderCell>Producto</Table.HeaderCell>
+              <Table.HeaderCell>Empresa</Table.HeaderCell>
               <Table.HeaderCell>Categoría</Table.HeaderCell>
               <Table.HeaderCell>Material</Table.HeaderCell>
               <Table.HeaderCell>Disponibilidad</Table.HeaderCell>
@@ -84,6 +92,7 @@ const WebProductsPage = () => {
                       </div>
                     </div>
                   </Table.Cell>
+                  <Table.Cell><div className="flex flex-wrap gap-1">{companyOf(p.sales_channels).map((c) => <Badge key={c.code} size="2xsmall" color={companyColor(c.code)}>{c.name}</Badge>)}{!companyOf(p.sales_channels).length && <span className="text-ui-fg-muted">—</span>}</div></Table.Cell>
                   <Table.Cell>{p.categories?.[0]?.name || <span className="text-ui-fg-muted">—</span>}</Table.Cell>
                   <Table.Cell>{p.material || (m.material as string) || <span className="text-ui-fg-muted">—</span>}</Table.Cell>
                   <Table.Cell>{availabilityLabel(m.availability as string)}</Table.Cell>

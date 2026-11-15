@@ -7,7 +7,7 @@ import StatusCard from "../../../components/status-card"
 import { archiveProject, errorMessage, getProject, updateProject, type Project, type ProjectInput } from "../../../lib/projects"
 
 const toInput = (p: Project): ProjectInput => ({
-  title: p.title, slug: p.slug, line: p.line, specialty: p.specialty || "", work_type: p.work_type || "", client_name: p.client_name || "",
+  title: p.title, slug: p.slug, line: p.line, company: p.company || "karven", specialty: p.specialty || "", work_type: p.work_type || "", client_name: p.client_name || "",
   location: p.location || "", year: p.year, summary: p.summary || "", client_need: p.client_need || "", solution: p.solution || "",
   fabrication: p.fabrication || "", cover_url: p.cover_url, cover_alt: p.cover_alt || "", gallery: p.gallery || [],
   related_product_ids: p.related_product_ids || [], seo_title: p.seo_title || "", seo_description: p.seo_description || "", sort_order: p.sort_order ?? 0,

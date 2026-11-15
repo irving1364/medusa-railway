@@ -1,5 +1,7 @@
 import type { AuthenticatedMedusaRequest } from "@medusajs/framework/http"
 import { Modules } from "@medusajs/framework/utils"
+import { COMPANY_MODULE } from "../../../modules/company"
+import type CompanyModuleService from "../../../modules/company/service"
 import { QUOTE_MODULE } from "../../../modules/quote"
 import type QuoteModuleService from "../../../modules/quote/service"
 import { computeTotals, type QuoteLine } from "../../../modules/quote/service"
@@ -7,6 +9,29 @@ import { computeTotals, type QuoteLine } from "../../../modules/quote/service"
 export type Loose = Record<string, any>
 
 export const quoteService = (req: { scope: any }) => req.scope.resolve(QUOTE_MODULE) as QuoteModuleService
+
+/**
+ * Settings used to render and send a quote: the company's identity (brand, legal data, bank, sender) merged over the
+ * quote profile (numbering, validity, tax, default texts). Company fields win when present.
+ */
+export async function identityFor(req: { scope: any }, store: string): Promise<Loose> {
+  const service = quoteService(req)
+  const profile = await service.profileFor(store as "fabmetal" | "karven")
+  try {
+    const companies = req.scope.resolve(COMPANY_MODULE) as CompanyModuleService
+    const company = await companies.byCode(store)
+    if (!company) return profile
+    const merged: Loose = { ...profile }
+    for (const k of ["brand_line", "tagline", "ruc", "address", "website", "email", "whatsapp", "logo_url", "bank_name", "bank_holder", "bank_account_type", "bank_account_number", "from_email", "cc_email"]) {
+      if (company[k] !== null && company[k] !== undefined && company[k] !== "") merged[k] = company[k]
+    }
+    merged.company_name = company.legal_name || profile.company_name
+    merged.company = company
+    return merged
+  } catch {
+    return profile
+  }
+}
 
 /** Who is acting, for revisions. */
 export async function actorEmail(req: AuthenticatedMedusaRequest): Promise<string | null> {
