@@ -64,7 +64,7 @@ const EditPurchasePage = () => {
         <div className="flex flex-wrap gap-2">
           <Button size="small" variant="secondary" asChild><a href={orderPdfUrl(order.id)} target="_blank" rel="noreferrer">Ver PDF</a></Button>
           <Button size="small" variant="secondary" onClick={duplicate}>Duplicar</Button>
-          {(order.status === "draft" || order.status === "cancelled") && <Button size="small" variant="danger" onClick={() => setConfirmDelete(true)}>Eliminar</Button>}
+          <Button size="small" variant="danger" onClick={() => setConfirmDelete(true)}>Eliminar</Button>
           <Button size="small" variant="secondary" onClick={() => navigate("/compras")}>Volver</Button>
           <Button size="small" isLoading={busy} onClick={save} disabled={!dirty}>Guardar</Button>
         </div>
@@ -79,7 +79,7 @@ const EditPurchasePage = () => {
 
       <Prompt open={confirmDelete} onOpenChange={setConfirmDelete}>
         <Prompt.Content>
-          <Prompt.Header><Prompt.Title>Eliminar la orden {order.number}</Prompt.Title><Prompt.Description>Desaparece de la lista y su número no se reutiliza.</Prompt.Description></Prompt.Header>
+          <Prompt.Header><Prompt.Title>Eliminar la orden {order.number}</Prompt.Title><Prompt.Description>Desaparece de la lista y su número no se reutiliza. Si ya tiene recepciones o abonos, considere cancelarla en lugar de eliminarla para conservar el historial a la vista.</Prompt.Description></Prompt.Header>
           <Prompt.Footer>
             <Prompt.Cancel>Cancelar</Prompt.Cancel>
             <Prompt.Action onClick={async () => { try { await deleteOrder(order.id); toast.success("Orden eliminada"); navigate("/compras") } catch (e) { toast.error(errorMessage(e, "No se pudo eliminar")) } }}>Eliminar</Prompt.Action>

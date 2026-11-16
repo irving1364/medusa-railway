@@ -33,11 +33,10 @@ export async function POST(req: AuthenticatedMedusaRequest<Loose>, res: MedusaRe
   res.json({ order: serialize(order) })
 }
 
-/** DELETE /admin/purchase-orders/:id — only drafts and cancelled orders can be deleted (soft). */
+/** DELETE /admin/purchase-orders/:id — soft delete (the number is not reused; receipts, payments and history stay in the database). */
 export async function DELETE(req: AuthenticatedMedusaRequest, res: MedusaResponse) {
   const service = purchaseService(req)
   const current = await service.retrievePurchaseOrder(req.params.id)
-  if (current.status !== "draft" && current.status !== "cancelled") throw new MedusaError(MedusaError.Types.NOT_ALLOWED, "Solo se eliminan borradores o canceladas; cancele la orden primero")
   await service.softDeletePurchaseOrders([current.id])
   res.json({ id: current.id, object: "purchase_order", deleted: true })
 }
