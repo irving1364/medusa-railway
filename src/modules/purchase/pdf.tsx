@@ -41,7 +41,7 @@ const makeStyles = ({ StyleSheet }: PdfLib) => StyleSheet.create({
   td: { paddingVertical: 7, paddingHorizontal: 8, borderRightWidth: 1, borderRightColor: LINE, lineHeight: 1.25 },
   descRow: { borderTopWidth: 1, borderTopColor: LINE, paddingVertical: 6, paddingHorizontal: 8 },
   desc: { fontStyle: "italic", fontSize: 8.5, lineHeight: 1.4 },
-  cDesc: { width: "44%" }, cQty: { width: "9%", textAlign: "right" }, cPrice: { width: "13%", textAlign: "right" }, cDisc: { width: "9%", textAlign: "right" }, cTax: { width: "11%", textAlign: "right" }, cAmt: { width: "14%", textAlign: "right", borderRightWidth: 0 },
+  cDesc: { width: "41%" }, cQty: { width: "9%", textAlign: "right" }, cPrice: { width: "13%", textAlign: "right" }, cDisc: { width: "8%", textAlign: "right" }, cTax: { width: "14%", textAlign: "right" }, cAmt: { width: "15%", textAlign: "right", borderRightWidth: 0 },
   totals: { marginTop: 12, marginLeft: "auto", width: "34%", borderWidth: 1, borderColor: LINE, borderRadius: 6, overflow: "hidden" },
   totalRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 6, paddingHorizontal: 10, borderTopWidth: 1, borderTopColor: LINE },
   totalMain: { backgroundColor: NAVY, color: "#FFFFFF", fontWeight: 600 },
