@@ -19,11 +19,13 @@ const baseName = (name: string) =>
 /**
  * POST /admin/web-uploads — product photos and documents.
  * Images are rotated per EXIF, resized to fit 1600 px and re-encoded as WebP (no cropping); other files (PDF) are stored as sent.
+ * `?raw=1` keeps images exactly as uploaded (logos for PDFs, which only accept PNG/JPG).
  */
 export async function POST(req: AuthenticatedMedusaRequest, res: MedusaResponse) {
   const input = (req as unknown as { files?: Uploaded[] }).files
   if (!input?.length) throw new MedusaError(MedusaError.Types.INVALID_DATA, "No se recibió ningún archivo")
 
+  const raw = req.query.raw === "1" || req.query.raw === "true"
   const prepared: { filename: string; mimeType: string; content: string; access: "public"; meta: Record<string, unknown> }[] = []
   for (const raw of input) {
     // multer decodes file names as latin1; restore UTF-8 so accents survive ("móvil", not "mÃ³vil")
@@ -32,7 +34,7 @@ export async function POST(req: AuthenticatedMedusaRequest, res: MedusaResponse)
     if (f.size > (isImage ? MAX_IMAGE_BYTES : MAX_FILE_BYTES)) {
       throw new MedusaError(MedusaError.Types.INVALID_DATA, `${f.originalname} supera el tamaño permitido (${isImage ? "15" : "25"} MB)`)
     }
-    if (!isImage) {
+    if (!isImage || raw) {
       prepared.push({ filename: f.originalname, mimeType: f.mimetype, content: f.buffer.toString("base64"), access: "public", meta: { optimized: false, size: f.size, original_name: f.originalname } })
       continue
     }

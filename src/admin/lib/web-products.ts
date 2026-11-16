@@ -304,11 +304,11 @@ export const createRedirect = (from_handle: string, to_handle: string, product_i
 
 export interface UploadedFile { id: string; url: string; name: string; width?: number; height?: number; size?: number; optimized?: boolean }
 
-/** Photos go through /admin/web-uploads (EXIF rotation, max 1600 px, WebP); PDFs are stored as sent. */
-export async function webUpload(files: File[]): Promise<UploadedFile[]> {
+/** Photos go through /admin/web-uploads (EXIF rotation, max 1600 px, WebP); PDFs are stored as sent. `raw` keeps images untouched (logos). */
+export async function webUpload(files: File[], raw = false): Promise<UploadedFile[]> {
   const form = new FormData()
   for (const f of files) form.append("files", f)
-  const res = await fetch("/admin/web-uploads", { method: "POST", body: form, credentials: "include" })
+  const res = await fetch(`/admin/web-uploads${raw ? "?raw=1" : ""}`, { method: "POST", body: form, credentials: "include" })
   const body = await res.json().catch(() => ({}))
   if (!res.ok) throw new Error(body?.message || `Error ${res.status} al subir`)
   return body.files as UploadedFile[]

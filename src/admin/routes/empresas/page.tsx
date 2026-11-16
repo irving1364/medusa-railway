@@ -1,9 +1,10 @@
 import { defineRouteConfig } from "@medusajs/admin-sdk"
 import { Buildings } from "@medusajs/icons"
 import { Badge, Button, Container, Heading, Input, Label, Text, Textarea, toast } from "@medusajs/ui"
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import CompanySwitcher from "../../components/company-switcher"
 import { companyColor, listCompanies, updateCompany, type Company, type CompanyCode } from "../../lib/companies"
+import { webUpload } from "../../lib/web-products"
 
 const Field = ({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) => (
   <div className="flex flex-col gap-1.5">
@@ -19,6 +20,18 @@ const CompaniesPage = () => {
   const [code, setCode] = useState<CompanyCode>("fabmetal")
   const [value, setValue] = useState<Company | null>(null)
   const [busy, setBusy] = useState(false)
+  const [logoBusy, setLogoBusy] = useState(false)
+  const logoInput = useRef<HTMLInputElement>(null)
+
+  const onLogo = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ""
+    if (!file) return
+    if (file.type !== "image/png" && file.type !== "image/jpeg") { toast.error("El logo debe ser PNG o JPG (el PDF no admite otros formatos)"); return }
+    if (file.size > 2 * 1024 * 1024) { toast.error("El logo supera 2 MB"); return }
+    setLogoBusy(true)
+    try { const [u] = await webUpload([file], true); set("logo_url", u.url); toast.success("Logo cargado; pulse Guardar") } catch (err) { toast.error(err instanceof Error ? err.message : "No se pudo subir el logo") } finally { setLogoBusy(false) }
+  }
 
   useEffect(() => { listCompanies().then(({ companies }) => { setSaved(companies); setValue(companies.find((c) => c.code === "fabmetal") || companies[0] || null) }).catch((e) => toast.error(e instanceof Error ? e.message : "No se pudieron cargar las empresas")) }, [])
   const original = saved.find((c) => c.code === code) || null
@@ -82,7 +95,14 @@ const CompaniesPage = () => {
               <Field label="Sitio web"><Input {...text("website")} /></Field>
               <Field label="Correo público"><Input {...text("email")} /></Field>
               <Field label="WhatsApp"><Input {...text("whatsapp")} /></Field>
-              <Field label="Logo (URL)" hint="PNG o JPG; se muestra arriba a la derecha de los documentos."><Input placeholder="https://…/logo.png" {...text("logo_url")} /></Field>
+              <Field label="Logo" hint="PNG o JPG hasta 2 MB; se muestra arriba a la derecha de los documentos.">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-14 w-20 items-center justify-center overflow-hidden rounded-md border border-ui-border-base bg-white">{value.logo_url ? <img src={value.logo_url} alt="" className="max-h-12 max-w-[4.5rem] object-contain" /> : <Text size="xsmall" className="text-ui-fg-muted">Sin logo</Text>}</div>
+                  <input ref={logoInput} type="file" accept="image/png,image/jpeg" className="hidden" onChange={onLogo} />
+                  <Button size="small" variant="secondary" type="button" isLoading={logoBusy} onClick={() => logoInput.current?.click()}>{value.logo_url ? "Cambiar logo" : "Subir logo"}</Button>
+                  {value.logo_url && <Button size="small" variant="transparent" type="button" onClick={() => set("logo_url", null)}>Quitar</Button>}
+                </div>
+              </Field>
               <Field label="Color" hint="Para distinguirla en el panel."><Input placeholder="#2F4273" {...text("color")} /></Field>
             </div>
           </Container>
