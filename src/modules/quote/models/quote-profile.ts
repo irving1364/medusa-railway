@@ -21,6 +21,7 @@ const QuoteProfile = model.define("quote_profile", {
   payment_terms: model.text().nullable(),
   general_terms: model.text().nullable(),
   number_prefix: model.text().default("S"),
+  number_digits: model.number().default(4),
   next_number: model.number().default(1),
   validity_days: model.number().default(30),
   tax_rate: model.number().default(7),

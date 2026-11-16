@@ -18,13 +18,13 @@ const registerFonts = ({ Font }: PdfLib) => { Font.register({
   ],
 }); Font.registerHyphenationCallback((word) => [word]) }
 
-const NAVY = "#2F4273"
+const DEFAULT_ACCENT = "#2F4273"
 const INK = "#1F2430"
 const MUTED = "#5C6370"
 const LINE = "#D9DEE7"
 const SOFT = "#F3F5F9"
 
-const makeStyles = ({ StyleSheet }: PdfLib) => StyleSheet.create({
+const makeStyles = ({ StyleSheet }: PdfLib, NAVY: string) => StyleSheet.create({
   page: { paddingTop: 34, paddingBottom: 70, paddingHorizontal: 40, fontFamily: "Montserrat", fontSize: 9, color: INK },
   band: { position: "absolute", top: 0, left: 0, right: 0, height: 118, backgroundColor: SOFT, borderBottomRightRadius: 220 },
   header: { flexDirection: "row", justifyContent: "space-between", marginBottom: 26 },
@@ -36,14 +36,17 @@ const makeStyles = ({ StyleSheet }: PdfLib) => StyleSheet.create({
   titleRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", marginTop: 20, marginBottom: 14 },
   customer: { fontSize: 10 },
   customerSub: { fontSize: 8.5, color: MUTED },
-  title: { fontSize: 20, color: NAVY, textAlign: "right" },
+  titleBlock: { alignItems: "flex-end" },
+  titleLabel: { fontSize: 9, color: MUTED, letterSpacing: 1, textTransform: "uppercase" },
+  titleNumber: { fontSize: 22, fontWeight: 600, color: NAVY },
+  titleCompany: { fontSize: 10, color: MUTED, marginTop: 2 },
   infoBox: { flexDirection: "row", borderWidth: 1, borderColor: LINE, borderRadius: 6, paddingVertical: 8, paddingHorizontal: 12, marginBottom: 14 },
   infoCell: { flex: 1 },
   infoLabel: { fontSize: 8.5, color: MUTED },
   infoValue: { fontSize: 9.5 },
   table: { borderWidth: 1, borderColor: LINE, borderRadius: 6, overflow: "hidden" },
   thead: { flexDirection: "row", backgroundColor: NAVY, color: "#FFFFFF", fontSize: 8.5 },
-  th: { paddingVertical: 7, paddingHorizontal: 8, borderRightWidth: 1, borderRightColor: "#4B5C8C" },
+  th: { paddingVertical: 7, paddingHorizontal: 8, borderRightWidth: 1, borderRightColor: "rgba(255,255,255,0.35)" },
   row: { flexDirection: "row", borderTopWidth: 1, borderTopColor: LINE },
   td: { paddingVertical: 7, paddingHorizontal: 8, borderRightWidth: 1, borderRightColor: LINE, lineHeight: 1.25 },
   descRow: { borderTopWidth: 1, borderTopColor: LINE, paddingVertical: 8, paddingHorizontal: 8 },
@@ -71,9 +74,12 @@ const date = (d: string | Date | null | undefined) => { if (!d) return "—"; co
 const lines = (t: string | null | undefined) => (t || "").split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
 
 /** The quotation document, laid out like the Odoo template the client uses. */
-const build = (lib: PdfLib) => {
+/** Accent colour per company (Empresas › Color); falls back to the Odoo navy. */
+const accentOf = (profile: Loose) => (/^#[0-9a-f]{6}$/i.test(String(profile.company?.color || "")) ? String(profile.company.color) : DEFAULT_ACCENT)
+
+const build = (lib: PdfLib, accent: string) => {
   const { Document, Image, Page, Text, View } = lib
-  const s = makeStyles(lib)
+  const s = makeStyles(lib, accent)
   const Bullets = ({ text }: { text: string | null | undefined }) => (
   <View>
     {lines(text).map((l, i) => (
@@ -111,7 +117,11 @@ const build = (lib: PdfLib) => {
             {q.contact_name ? <Text style={s.customerSub}>Atención: {q.contact_name}</Text> : null}
             {q.customer_address ? <Text style={s.customerSub}>{q.customer_address}</Text> : null}
           </View>
-          <Text style={s.title}>Número de cotización {q.number}{q.version > 1 ? ` · v${q.version}` : ""}</Text>
+          <View style={s.titleBlock}>
+            <Text style={s.titleLabel}>Cotización N.º</Text>
+            <Text style={s.titleNumber}>{q.number}{q.version > 1 ? ` · v${q.version}` : ""}</Text>
+            <Text style={s.titleCompany}>{profile.company?.name || profile.brand_line}</Text>
+          </View>
         </View>
 
         <View style={s.infoBox}>
@@ -188,6 +198,6 @@ const build = (lib: PdfLib) => {
 
 export const renderQuotePdf = async (quote: Loose, profile: Loose): Promise<Buffer> => {
   const lib = await loadLib()
-  const QuoteDocument = build(lib)
+  const QuoteDocument = build(lib, accentOf(profile))
   return lib.renderToBuffer(<QuoteDocument quote={quote} profile={profile} />)
 }

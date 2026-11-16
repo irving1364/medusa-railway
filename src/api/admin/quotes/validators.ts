@@ -71,6 +71,7 @@ export const ProfileSchema = z.object({
   payment_terms: optText(4000),
   general_terms: optText(6000),
   number_prefix: z.string().max(10).optional(),
+  number_digits: z.number().int().min(3).max(8).optional(),
   next_number: z.number().int().min(1).max(10000000).optional(),
   validity_days: z.number().int().min(1).max(365).optional(),
   tax_rate: z.number().min(0).max(100).optional(),

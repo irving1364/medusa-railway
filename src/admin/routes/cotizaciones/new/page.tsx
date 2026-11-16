@@ -47,7 +47,7 @@ const NewQuotePage = () => {
       <Container className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <Heading level="h1">Nueva cotización</Heading>
-          <Text size="small" className="text-ui-fg-subtle">Siguiente número de {profile?.brand_line.split("|")[0].trim() || "la tienda"}: {profile ? `${profile.number_prefix}${String(profile.next_number).padStart(5, "0")}` : "…"}</Text>
+          <Text size="small" className="text-ui-fg-subtle">Siguiente número de {profile?.brand_line.split("|")[0].trim() || "la tienda"}: {profile ? `${profile.number_prefix}${String(profile.next_number).padStart(profile.number_digits || 4, "0")}` : "…"}</Text>
         </div>
         <div className="flex gap-2">
           <Button size="small" variant="secondary" onClick={() => navigate("/cotizaciones")}>Cancelar</Button>

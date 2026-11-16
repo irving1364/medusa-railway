@@ -60,6 +60,7 @@ export const DEFAULT_PROFILES: Record<QuoteStore, Record<string, unknown>> = {
     payment_terms: "60% de abono inicial para inicio de producción, compra de materiales y reserva de espacio en taller.\n30% contra avance verificable en taller, previo a despacho, entrega, instalación o etapa final del proyecto.\n10% contra entrega final del trabajo terminado.",
     general_terms: "El avance podrá ser validado mediante fotos, videos o visita al taller.\nLa entrega, despacho o instalación será programada una vez cancelado el 90% del valor total del proyecto.\nEl saldo final correspondiente al 10% será cancelado contra entrega del trabajo terminado.\nTodo cambio, adicional o modificación fuera del alcance cotizado deberá ser evaluado y cotizado por separado.",
     number_prefix: "S",
+    number_digits: 5,
     next_number: 249,
     validity_days: 30,
     tax_rate: 7,
@@ -81,7 +82,8 @@ export const DEFAULT_PROFILES: Record<QuoteStore, Record<string, unknown>> = {
     warranty_text: "El mobiliario cuenta con 1 año de garantía por defectos de fabricación.",
     payment_terms: "60% de abono inicial para inicio de producción, compra de materiales y reserva de espacio en taller.\n30% contra avance verificable en taller, previo a despacho, entrega, instalación o etapa final del proyecto.\n10% contra entrega final del trabajo terminado.",
     general_terms: "El avance podrá ser validado mediante fotos, videos o visita al taller.\nLa entrega, despacho o instalación será programada una vez cancelado el 90% del valor total del proyecto.\nEl saldo final correspondiente al 10% será cancelado contra entrega del trabajo terminado.\nTodo cambio, adicional o modificación fuera del alcance cotizado deberá ser evaluado y cotizado por separado.",
-    number_prefix: "KM",
+    number_prefix: "KM-",
+    number_digits: 4,
     next_number: 1,
     validity_days: 30,
     tax_rate: 7,
@@ -104,8 +106,9 @@ class QuoteModuleService extends MedusaService({ Quote, QuoteRevision, QuoteProf
     let seq = Number(profile.next_number) || 1
     const existing = await this.listQuotes({ store }, { select: ["number"] })
     const taken = new Set(existing.map((q) => q.number))
-    let number = `${profile.number_prefix || ""}${String(seq).padStart(5, "0")}`
-    while (taken.has(number)) { seq += 1; number = `${profile.number_prefix || ""}${String(seq).padStart(5, "0")}` }
+    const digits = Math.min(Math.max(Number(profile.number_digits) || 4, 3), 8)
+    let number = `${profile.number_prefix || ""}${String(seq).padStart(digits, "0")}`
+    while (taken.has(number)) { seq += 1; number = `${profile.number_prefix || ""}${String(seq).padStart(digits, "0")}` }
     await this.updateQuoteProfiles({ id: profile.id, next_number: seq + 1 } as Loose)
     return number
   }

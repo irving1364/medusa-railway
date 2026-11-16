@@ -15,10 +15,10 @@ const registerFonts = ({ Font }: PdfLib) => {
   Font.registerHyphenationCallback((word) => [word])
 }
 
-const NAVY = "#2F4273", INK = "#1F2430", MUTED = "#5C6370", LINE = "#D9DEE7", SOFT = "#F3F5F9"
+const DEFAULT_ACCENT = "#2F4273", INK = "#1F2430", MUTED = "#5C6370", LINE = "#D9DEE7", SOFT = "#F3F5F9"
 
 // No unitless lineHeight on the Page: it makes react-pdf drop `fixed` elements anchored with `bottom`.
-const makeStyles = ({ StyleSheet }: PdfLib) => StyleSheet.create({
+const makeStyles = ({ StyleSheet }: PdfLib, NAVY: string) => StyleSheet.create({
   page: { paddingTop: 34, paddingBottom: 70, paddingHorizontal: 40, fontFamily: "Montserrat", fontSize: 9, color: INK },
   band: { position: "absolute", top: 0, left: 0, right: 0, height: 118, backgroundColor: SOFT, borderBottomRightRadius: 220 },
   header: { flexDirection: "row", justifyContent: "space-between", marginBottom: 26 },
@@ -36,7 +36,7 @@ const makeStyles = ({ StyleSheet }: PdfLib) => StyleSheet.create({
   infoValue: { fontSize: 9.5 },
   table: { borderWidth: 1, borderColor: LINE, borderRadius: 6, overflow: "hidden" },
   thead: { flexDirection: "row", backgroundColor: NAVY, color: "#FFFFFF", fontSize: 8.5 },
-  th: { paddingVertical: 7, paddingHorizontal: 8, borderRightWidth: 1, borderRightColor: "#4B5C8C" },
+  th: { paddingVertical: 7, paddingHorizontal: 8, borderRightWidth: 1, borderRightColor: "rgba(255,255,255,0.35)" },
   row: { flexDirection: "row", borderTopWidth: 1, borderTopColor: LINE },
   td: { paddingVertical: 7, paddingHorizontal: 8, borderRightWidth: 1, borderRightColor: LINE, lineHeight: 1.25 },
   descRow: { borderTopWidth: 1, borderTopColor: LINE, paddingVertical: 6, paddingHorizontal: 8 },
@@ -60,9 +60,12 @@ const date = (d: string | Date | null | undefined) => { if (!d) return "—"; co
 const lines = (t: string | null | undefined) => (t || "").split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
 
 /** The purchase order document, laid out like the Odoo template the client uses (P00016). */
-const build = (lib: PdfLib) => {
+/** Accent colour per company (Empresas › Color); falls back to the Odoo navy. */
+const accentOf = (profile: Loose) => (/^#[0-9a-f]{6}$/i.test(String(profile.company?.color || "")) ? String(profile.company.color) : DEFAULT_ACCENT)
+
+const build = (lib: PdfLib, accent: string) => {
   const { Document, Image, Page, Text, View } = lib
-  const s = makeStyles(lib)
+  const s = makeStyles(lib, accent)
   const PurchaseDocument = ({ order, profile }: { order: Loose; profile: Loose }) => {
     const o = order
     const items = (o.lines || []) as PurchaseLine[]
@@ -163,6 +166,6 @@ const build = (lib: PdfLib) => {
 
 export const renderPurchasePdf = async (order: Loose, profile: Loose): Promise<Buffer> => {
   const lib = await loadLib()
-  const PurchaseDocument = build(lib)
+  const PurchaseDocument = build(lib, accentOf(profile))
   return lib.renderToBuffer(<PurchaseDocument order={order} profile={profile} />)
 }

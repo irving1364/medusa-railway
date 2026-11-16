@@ -77,6 +77,7 @@ export interface QuoteProfile {
   payment_terms: string | null
   general_terms: string | null
   number_prefix: string
+  number_digits: number
   next_number: number
   validity_days: number
   tax_rate: number

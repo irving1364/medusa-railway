@@ -72,8 +72,9 @@ const QuoteSettingsPage = () => {
           </Container>
           <Container className="divide-y p-0">
             <div className="px-6 py-4"><Heading level="h2">Numeración, impuestos y firma</Heading></div>
-            <div className="grid gap-4 px-6 py-4 md:grid-cols-3">
-              <Field label="Prefijo" hint="Ej. S → S00249"><Input {...text("number_prefix")} /></Field>
+            <div className="grid gap-4 px-6 py-4 md:grid-cols-4">
+              <Field label="Prefijo" hint="Ej. KM- → KM-0001 · S → S00249"><Input {...text("number_prefix")} /></Field>
+              <Field label="Dígitos" hint="Ancho del número: 4 → 0001, 5 → 00001."><Input type="number" min={3} max={8} value={value.number_digits} onChange={(e) => set("number_digits", Number(e.target.value) || 4)} /></Field>
               <Field label="Siguiente número" hint="Para continuar la numeración de Odoo."><Input type="number" min={1} value={value.next_number} onChange={(e) => set("next_number", Number(e.target.value) || 1)} /></Field>
               <Field label="Validez (días)"><Input type="number" min={1} value={value.validity_days} onChange={(e) => set("validity_days", Number(e.target.value) || 30)} /></Field>
               <Field label="ITBMS por defecto (%)"><Input type="number" min={0} step="0.5" value={value.tax_rate} onChange={(e) => set("tax_rate", Number(e.target.value) || 0)} /></Field>
