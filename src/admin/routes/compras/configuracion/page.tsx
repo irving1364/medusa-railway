@@ -27,7 +27,7 @@ const PurchaseSettingsPage = () => {
   const save = async () => {
     if (!value) return
     setBusy(true)
-    try { const { id: _i, company: _c, ...body } = value; const { profile } = await updatePurchaseProfile(company, body); setSaved((all) => all.map((p) => (p.company === company ? profile : p))); setValue(profile); toast.success("Configuración guardada") } catch (e) { toast.error(errorMessage(e, "No se pudo guardar")) } finally { setBusy(false) }
+    try { const { id: _i, company: _c, created_at: _ca, updated_at: _ua, deleted_at: _da, ...body } = value as PurchaseProfile & { created_at?: string; updated_at?: string; deleted_at?: string | null }; const { profile } = await updatePurchaseProfile(company, body); setSaved((all) => all.map((p) => (p.company === company ? profile : p))); setValue(profile); toast.success("Configuración guardada") } catch (e) { toast.error(errorMessage(e, "No se pudo guardar")) } finally { setBusy(false) }
   }
 
   return (

@@ -44,7 +44,7 @@ const CompaniesPage = () => {
     if (!value) return
     setBusy(true)
     try {
-      const { id: _i, code: _c, sales_channel_id: _s, ...body } = value
+      const { id: _i, code: _c, sales_channel_id: _s, created_at: _ca, updated_at: _ua, deleted_at: _da, ...body } = value as Company & { created_at?: string; updated_at?: string; deleted_at?: string | null }
       const { company } = await updateCompany(code, body)
       setSaved((all) => all.map((c) => (c.code === code ? company : c)))
       setValue(company)

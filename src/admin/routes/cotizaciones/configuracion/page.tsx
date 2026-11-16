@@ -31,7 +31,7 @@ const QuoteSettingsPage = () => {
     if (!value) return
     setBusy(true)
     try {
-      const { id: _i, store: _s, ...body } = value
+      const { id: _i, store: _s, created_at: _ca, updated_at: _ua, deleted_at: _da, ...body } = value as QuoteProfile & { created_at?: string; updated_at?: string; deleted_at?: string | null }
       const { profile } = await updateProfile(store, body)
       setSaved((all) => all.map((p) => (p.store === store ? profile : p)))
       setValue(profile)
