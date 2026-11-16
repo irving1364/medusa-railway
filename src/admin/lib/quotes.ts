@@ -185,7 +185,7 @@ export const updateProfile = (store: QuoteStore, body: Partial<QuoteProfile>) =>
 
 /** Catalogue search for the line picker: products with variants and PAB prices. */
 export const searchProducts = async (q: string) => {
-  const { products } = await sdk.admin.product.list({ q, limit: 12, status: "published", fields: "id,title,handle,description,material,metadata,thumbnail,*variants,*variants.prices" } as HttpTypes.AdminProductListParams)
+  const { products } = await sdk.admin.product.list({ q, limit: 12, status: ["published"], fields: "id,title,handle,description,material,metadata,thumbnail,*variants,*variants.prices" } as HttpTypes.AdminProductListParams)
   return products || []
 }
 export const searchCustomers = async (q: string) => {

@@ -270,7 +270,7 @@ const api = <T,>(path: string, init: { method?: string; body?: unknown; query?: 
   sdk.client.fetch<T>(path, { method: init.method || "GET", body: init.body, query: init.query })
 
 export const listWebProducts = (query: { q?: string; status?: "draft" | "published"; limit?: number; offset?: number; sales_channel_id?: string[] }) =>
-  sdk.admin.product.list({ ...query, fields: "id,title,subtitle,handle,status,thumbnail,material,metadata,updated_at,*categories,*variants,*variants.prices,*sales_channels", order: "-updated_at" } as HttpTypes.AdminProductListParams)
+  sdk.admin.product.list({ ...query, status: query.status ? [query.status] : undefined, fields: "id,title,subtitle,handle,status,thumbnail,material,metadata,updated_at,*categories,*variants,*variants.prices,*sales_channels", order: "-updated_at" } as HttpTypes.AdminProductListParams)
 export const getWebProduct = (id: string) => sdk.admin.product.retrieve(id, { fields: PRODUCT_FIELDS })
 export const findByHandle = async (handle: string) => (await sdk.admin.product.list({ handle, fields: "id,handle" } as HttpTypes.AdminProductListParams)).products
 export const createWebProduct = (body: Record<string, unknown>) => sdk.admin.product.create(body as unknown as HttpTypes.AdminCreateProduct, { fields: PRODUCT_FIELDS })
