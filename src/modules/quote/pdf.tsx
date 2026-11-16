@@ -32,7 +32,7 @@ const makeStyles = ({ StyleSheet }: PdfLib) => StyleSheet.create({
   tagline: { fontSize: 9, color: NAVY },
   taglineItalic: { fontSize: 9, color: NAVY, fontStyle: "italic" },
   legal: { fontSize: 8, color: MUTED, textAlign: "right", marginTop: 4 },
-  logo: { width: 34, height: 34, objectFit: "contain", alignSelf: "flex-end", marginBottom: 6 },
+  logo: { width: 120, height: 44, objectFit: "contain", objectPosition: "right", alignSelf: "flex-end", marginBottom: 6 },
   titleRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", marginTop: 20, marginBottom: 14 },
   customer: { fontSize: 10 },
   customerSub: { fontSize: 8.5, color: MUTED },
