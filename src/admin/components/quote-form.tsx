@@ -1,7 +1,9 @@
 import type { HttpTypes } from "@medusajs/framework/types"
-import { Badge, Button, Container, Heading, Input, Label, Select, Text, Textarea } from "@medusajs/ui"
+import { Badge, Button, Container, FocusModal, Heading, Input, Label, Select, Text, Textarea, toast } from "@medusajs/ui"
 import { useEffect, useRef, useState } from "react"
 import { STORES, addDaysISO, searchCustomers, type QuoteInput, type QuoteProfile } from "../lib/quotes"
+import { createCustomer, customerName, emptyCustomer, quoteFieldsFrom, toPayload as customerPayload, validate as validateCustomer, type CustomerInput } from "../lib/customers"
+import CustomerForm from "./customer-form"
 import QuoteLines from "./quote-lines"
 
 interface Props {
@@ -30,6 +32,9 @@ export default function QuoteForm({ value, onChange, profile, lockStore, disable
   const [custResults, setCustResults] = useState<HttpTypes.AdminCustomer[]>([])
   const [custOpen, setCustOpen] = useState(false)
   const custBox = useRef<HTMLDivElement>(null)
+  const [newOpen, setNewOpen] = useState(false)
+  const [newCustomer, setNewCustomer] = useState<CustomerInput>(emptyCustomer())
+  const [newBusy, setNewBusy] = useState(false)
   useEffect(() => {
     if (!custQ.trim()) { setCustResults([]); return }
     const t = setTimeout(() => searchCustomers(custQ.trim()).then((r) => { setCustResults(r); setCustOpen(true) }).catch(() => setCustResults([])), 250)
@@ -41,10 +46,24 @@ export default function QuoteForm({ value, onChange, profile, lockStore, disable
     return () => document.removeEventListener("mousedown", close)
   }, [])
   const pickCustomer = (c: HttpTypes.AdminCustomer) => {
-    const name = [c.first_name, c.last_name].filter(Boolean).join(" ") || c.email || ""
-    const addr = c.addresses?.[0]
-    onChange({ ...value, customer_id: c.id, customer_name: c.company_name || name, customer_company: c.company_name ? "" : value.customer_company, contact_name: c.company_name ? name : value.contact_name, customer_email: c.email || value.customer_email, customer_phone: c.phone || addr?.phone || value.customer_phone, customer_address: addr ? [addr.address_1, addr.address_2, addr.city, addr.province].filter(Boolean).join(", ") : value.customer_address })
+    onChange({ ...value, ...quoteFieldsFrom(c) })
     setCustQ(""); setCustOpen(false)
+  }
+  const saveNewCustomer = async () => {
+    const problem = validateCustomer(newCustomer)
+    if (problem) { toast.error(problem); return }
+    setNewBusy(true)
+    try {
+      const { customer } = await createCustomer(customerPayload(newCustomer))
+      pickCustomer(customer)
+      setNewOpen(false)
+      setNewCustomer(emptyCustomer())
+      toast.success(`Cliente ${customerName(customer)} guardado y cargado en la cotización`)
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "No se pudo guardar el cliente")
+    } finally {
+      setNewBusy(false)
+    }
   }
 
   return (
@@ -54,7 +73,10 @@ export default function QuoteForm({ value, onChange, profile, lockStore, disable
         <div className="grid gap-4 px-6 py-4 md:grid-cols-2">
           {!disabled && (
             <div ref={custBox} className="relative md:col-span-2">
-              <Input size="small" placeholder="Buscar cliente registrado (nombre, empresa o correo)…" value={custQ} onChange={(e) => setCustQ(e.target.value)} onFocus={() => custResults.length && setCustOpen(true)} />
+              <div className="flex gap-2">
+                <Input size="small" placeholder="Buscar cliente registrado (nombre, empresa o correo)…" value={custQ} onChange={(e) => setCustQ(e.target.value)} onFocus={() => custResults.length && setCustOpen(true)} />
+                <Button size="small" variant="secondary" type="button" onClick={() => { setNewCustomer({ ...emptyCustomer(), name: custQ.trim() }); setNewOpen(true) }}>Nuevo cliente</Button>
+              </div>
               {custOpen && custResults.length > 0 && (
                 <ul className="absolute z-20 mt-1 w-full rounded-lg border border-ui-border-base bg-ui-bg-base shadow-elevation-flyout">
                   {custResults.map((c) => (
@@ -65,6 +87,19 @@ export default function QuoteForm({ value, onChange, profile, lockStore, disable
             </div>
           )}
           <Field label="Cliente" required hint="Nombre de la empresa o de la persona, tal como saldrá en el PDF."><Input placeholder="Cliente Regular" {...text("customer_name")} /></Field>
+          {!disabled && (
+            <FocusModal open={newOpen} onOpenChange={setNewOpen}>
+              <FocusModal.Content className="max-w-2xl">
+                <FocusModal.Header><Heading level="h2">Nuevo cliente · alta rápida</Heading></FocusModal.Header>
+                <FocusModal.Body className="overflow-y-auto p-6"><CustomerForm value={newCustomer} onChange={setNewCustomer} /></FocusModal.Body>
+                <FocusModal.Footer>
+                  <Button variant="secondary" type="button" onClick={() => setNewCustomer(emptyCustomer())}>Limpiar</Button>
+                  <Button variant="secondary" type="button" onClick={() => setNewOpen(false)}>Cancelar</Button>
+                  <Button type="button" isLoading={newBusy} onClick={saveNewCustomer}>Guardar cliente</Button>
+                </FocusModal.Footer>
+              </FocusModal.Content>
+            </FocusModal>
+          )}
           <Field label="Empresa (si el cliente es una persona)"><Input placeholder="Clínica…" {...text("customer_company")} /></Field>
           <Field label="R.U.C. / cédula"><Input placeholder="8-123-456" {...text("customer_ruc")} /></Field>
           <Field label="Persona de contacto"><Input placeholder="Nombre de quien recibe la cotización" {...text("contact_name")} /></Field>
