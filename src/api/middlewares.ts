@@ -4,6 +4,7 @@ import { CreateProjectSchema, UpdateProjectSchema, ProjectStatusSchema } from ".
 import { CreateMaterialSchema, UpdateMaterialSchema, CreateRedirectSchema } from "./admin/materials/validators"
 import { CreateQuoteSchema, UpdateQuoteSchema, QuoteStatusSchema, SendQuoteSchema, ProfileSchema } from "./admin/quotes/validators"
 import { UpdateCompanySchema } from "./admin/companies/validators"
+import { SupplierSchema, UpdateSupplierSchema, ItemSchema, UpdateItemSchema, CreatePurchaseOrderSchema, UpdatePurchaseOrderSchema, PurchaseStatusSchema, SendPurchaseSchema, ReceiptSchema, PaymentSchema, PurchaseProfileSchema } from "./admin/purchases/validators"
 
 // Files stay in memory (same approach as the core /admin/uploads route) and are handed to the file module as base64.
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024, files: 30 } })
@@ -23,5 +24,16 @@ export default defineMiddlewares({
     { matcher: "/admin/quotes/:id/send", method: "POST", middlewares: [validateAndTransformBody(SendQuoteSchema)] },
     { matcher: "/admin/quote-profiles/:store", method: "POST", middlewares: [validateAndTransformBody(ProfileSchema)] },
     { matcher: "/admin/companies/:code", method: "POST", middlewares: [validateAndTransformBody(UpdateCompanySchema)] },
+    { matcher: "/admin/suppliers", method: "POST", middlewares: [validateAndTransformBody(SupplierSchema)] },
+    { matcher: "/admin/suppliers/:id", method: "POST", middlewares: [validateAndTransformBody(UpdateSupplierSchema)] },
+    { matcher: "/admin/purchase-items", method: "POST", middlewares: [validateAndTransformBody(ItemSchema)] },
+    { matcher: "/admin/purchase-items/:id", method: "POST", middlewares: [validateAndTransformBody(UpdateItemSchema)] },
+    { matcher: "/admin/purchase-orders", method: "POST", middlewares: [validateAndTransformBody(CreatePurchaseOrderSchema)] },
+    { matcher: "/admin/purchase-orders/:id", method: "POST", middlewares: [validateAndTransformBody(UpdatePurchaseOrderSchema)] },
+    { matcher: "/admin/purchase-orders/:id/status", method: "POST", middlewares: [validateAndTransformBody(PurchaseStatusSchema)] },
+    { matcher: "/admin/purchase-orders/:id/send", method: "POST", middlewares: [validateAndTransformBody(SendPurchaseSchema)] },
+    { matcher: "/admin/purchase-orders/:id/receipts", method: "POST", middlewares: [validateAndTransformBody(ReceiptSchema)] },
+    { matcher: "/admin/purchase-orders/:id/payments", method: "POST", middlewares: [validateAndTransformBody(PaymentSchema)] },
+    { matcher: "/admin/purchase-profiles/:company", method: "POST", middlewares: [validateAndTransformBody(PurchaseProfileSchema)] },
   ],
 })
