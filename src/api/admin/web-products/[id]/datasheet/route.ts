@@ -91,7 +91,8 @@ export async function POST(req: AuthenticatedMedusaRequest<{ force?: boolean }>,
     company: company ? [company.name, company.brand_line, company.tagline, company.logo_url, company.color, company.website, company.storefront_url] : null,
     title: p.title, subtitle: p.subtitle, description: p.description, handle: p.handle, status: p.status, photo, alt: photo ? alts[photo] : null,
     category: [category?.name, category?.parent_category?.name], specs,
-    ds: { ...ds, code: undefined, auto_url: undefined, file_id: undefined, hash: undefined, issued_at: undefined, generated_at: undefined },
+    // generated fields excluded; mode/version normalised so the first generation does not change the hash
+    ds: { ...ds, mode: "auto", version: str(ds.version) || "01", code: undefined, auto_url: undefined, file_id: undefined, hash: undefined, issued_at: undefined, generated_at: undefined },
     uses: m.uses, options: m.options, warranty: m.warranty,
   }
   const hash = createHash("sha1").update(JSON.stringify(source)).digest("hex")
