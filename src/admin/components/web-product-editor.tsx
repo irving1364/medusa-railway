@@ -2,7 +2,7 @@ import { Badge, Button, Container, Heading, Prompt, Text, toast } from "@medusaj
 import { useEffect, useMemo, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import {
-  STOREFRONT_URL, createRedirect, createWebProduct, defaultSalesChannelId, deleteVariant, deleteWebProduct, emptyForm, errorMessage, featuredCollectionId, findByHandle, getWebProduct, listCategories, listMaterials, listRedirects, productPreviewUrl,
+  STOREFRONT_URL, createRedirect, createWebProduct, defaultSalesChannelId, generateDatasheet, deleteVariant, deleteWebProduct, emptyForm, errorMessage, featuredCollectionId, findByHandle, getWebProduct, listCategories, listMaterials, listRedirects, productPreviewUrl,
   publishProblems, suggestHandle, toForm, toPayload, updateWebProduct, type AdminProduct, type Category, type Material, type WebProductForm as FormValue,
 } from "../lib/web-products"
 import { defaultCompanyCode, listCompanies, useCompany, type Company } from "../lib/companies"
@@ -26,6 +26,7 @@ export default function WebProductEditor({ productId }: { productId?: string }) 
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [materialsOpen, setMaterialsOpen] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [generating, setGenerating] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [confirmHandle, setConfirmHandle] = useState<{ from: string; to: string } | null>(null)
 
@@ -79,8 +80,22 @@ export default function WebProductEditor({ productId }: { productId?: string }) 
         await createRedirect(product.handle, saved.handle, saved.id)
         setPreviousHandles((h) => [product.handle, ...h.filter((x) => x !== product.handle && x !== saved.handle)])
       }
-      setProduct(saved)
-      setValue(toForm(saved))
+      // Technical datasheet: rebuilt and linked when its content changed
+      let final = saved
+      if (form.datasheet.mode === "auto") {
+        setGenerating(true)
+        try {
+          const r = await generateDatasheet(saved.id)
+          final = (await getWebProduct(saved.id)).product
+          if (r.generated) toast.success(form.datasheet.approved ? "Ficha técnica actualizada y publicada" : "Ficha técnica actualizada (no aprobada, solo en el panel)")
+        } catch (e) {
+          toast.error(errorMessage(e, "El producto se guardó, pero no se pudo generar la ficha técnica"))
+        } finally {
+          setGenerating(false)
+        }
+      }
+      setProduct(final)
+      setValue(toForm(final))
       toast.success(saved.status === "published" ? "Guardado y publicado en la web" : "Guardado como borrador")
       if (isNew) navigate(`/productos-web/${saved.id}`, { replace: true })
     } catch (e) {
@@ -142,6 +157,13 @@ export default function WebProductEditor({ productId }: { productId?: string }) 
         isNew={isNew}
         productId={product?.id}
         previousHandles={previousHandles}
+        generating={generating}
+        onRegenerate={async () => {
+          if (!product) return
+          if (dirty) { toast.error("Guarde los cambios primero; al guardar la ficha se regenera sola"); return }
+          setGenerating(true)
+          try { await generateDatasheet(product.id, true); const { product: fresh } = await getWebProduct(product.id); setProduct(fresh); setValue(toForm(fresh)); toast.success("Ficha técnica regenerada") } catch (e) { toast.error(errorMessage(e, "No se pudo generar la ficha")) } finally { setGenerating(false) }
+        }}
         companies={companies}
       />
 

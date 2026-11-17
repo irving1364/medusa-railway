@@ -16,12 +16,14 @@ interface Props {
   onImages: (next: ImageItem[]) => void
   onThumbnail: (url: string | null) => void
   onDatasheet: (url: string | null, name: string | null) => void
+  /** The datasheet now lives in block 05 */
+  showDatasheet?: boolean
 }
 
 const fmtMb = (bytes?: number) => (bytes ? `${(bytes / 1024 / 1024).toFixed(bytes > 1024 * 1024 ? 1 : 2)} MB` : "")
 
 /** Block 03: photo gallery (optimised to WebP on upload, cover, order, ALT, replace, remove) and the technical datasheet PDF. */
-export default function ProductMedia({ images, thumbnail, datasheetUrl, datasheetName, suggestAlt, onImages, onThumbnail, onDatasheet }: Props) {
+export default function ProductMedia({ images, thumbnail, datasheetUrl, datasheetName, suggestAlt, onImages, onThumbnail, onDatasheet, showDatasheet = true }: Props) {
   const picker = useRef<HTMLInputElement>(null)
   const replacer = useRef<HTMLInputElement>(null)
   const pdfPicker = useRef<HTMLInputElement>(null)
@@ -166,7 +168,7 @@ export default function ProductMedia({ images, thumbnail, datasheetUrl, datashee
         )}
       </div>
 
-      <div className="flex flex-col gap-3 border-t border-ui-border-base pt-5">
+      {showDatasheet && <div className="flex flex-col gap-3 border-t border-ui-border-base pt-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <Label size="small" weight="plus">2. Ficha técnica PDF</Label>
           <Badge size="2xsmall" color="grey">Siempre visible</Badge>
@@ -195,7 +197,7 @@ export default function ProductMedia({ images, thumbnail, datasheetUrl, datashee
           </button>
         )}
         {!datasheetUrl && <Text size="xsmall" className="text-ui-fg-subtle">Todavía no se ha cargado una ficha técnica. La web mostrará el botón de descarga cuando exista.</Text>}
-      </div>
+      </div>}
     </div>
   )
 }

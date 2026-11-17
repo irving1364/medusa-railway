@@ -6,6 +6,7 @@ import {
   type Category, type Material, type VariantRow, type WebProductForm,
 } from "../lib/web-products"
 import type { Company } from "../lib/companies"
+import DatasheetSection from "./datasheet-section"
 import FeaturesEditor from "./features-editor"
 import ProductMedia from "./product-media"
 
@@ -20,6 +21,8 @@ interface Props {
   productId?: string
   previousHandles?: string[]
   companies?: Company[]
+  generating?: boolean
+  onRegenerate?: () => void
 }
 
 const SECTIONS = [
@@ -27,6 +30,7 @@ const SECTIONS = [
   { id: "specs", n: "02", title: "Especificaciones técnicas", hint: "Dimensiones y características del producto." },
   { id: "media", n: "03", title: "Fotografías y documentación", hint: "Imágenes del producto y ficha técnica descargable." },
   { id: "publish", n: "04", title: "Disponibilidad, SEO y publicación", hint: "Configure cómo aparecerá el producto en la web." },
+  { id: "datasheet", n: "05", title: "Ficha técnica", hint: "PDF generado con los datos del producto y estos campos; se actualiza al guardar." },
 ]
 
 const Field = ({ label, hint, required, right, children }: { label: string; hint?: string; required?: boolean; right?: React.ReactNode; children: React.ReactNode }) => (
@@ -58,14 +62,14 @@ const Section = ({ s, children }: { s: (typeof SECTIONS)[number]; children: Reac
         <Heading level="h2">{s.title}</Heading>
         <Text size="small" className="text-ui-fg-subtle">{s.hint}</Text>
       </div>
-      <Badge size="2xsmall" color="grey">{s.n} / 04</Badge>
+      <Badge size="2xsmall" color="grey">{s.n} / {String(SECTIONS.length).padStart(2, "0")}</Badge>
     </div>
     <div className="px-6 py-5">{children}</div>
   </Container>
 )
 
 /** The four-block product form from the specification. Suggestions regenerate until a field is edited by hand. */
-export default function WebProductForm({ value, onChange, categories, materials, onManageMaterials, isNew, productId, previousHandles = [], companies = [] }: Props) {
+export default function WebProductForm({ value, onChange, categories, materials, onManageMaterials, isNew, productId, previousHandles = [], companies = [], generating = false, onRegenerate }: Props) {
   const lines = useMemo(() => categories.filter((c) => !c.parent_category_id), [categories])
   const category = categories.find((c) => c.id === value.categoryId) || null
   const lineId = category?.parent_category_id || (category && !category.parent_category_id ? category.id : null)
@@ -250,6 +254,7 @@ export default function WebProductForm({ value, onChange, categories, materials,
           onImages={(images) => onChange({ ...value, images })}
           onThumbnail={(thumbnail) => onChange({ ...value, thumbnail })}
           onDatasheet={(datasheetUrl, datasheetName) => onChange({ ...value, datasheetUrl, datasheetName })}
+          showDatasheet={false}
         />
       </Section>
 
@@ -375,6 +380,31 @@ export default function WebProductForm({ value, onChange, categories, materials,
             )}
           </div>
         </div>
+      </Section>
+
+      {/* 05 */}
+      <Section s={SECTIONS[4]}>
+        <DatasheetSection
+          value={value.datasheet}
+          onChange={(datasheet) => onChange({ ...value, datasheet })}
+          hints={{
+            family: (categories.find((c) => c.id === lineId)?.name || ""),
+            reference: [value.subtitle, category?.name].filter(Boolean).join(" · "),
+            uses: String(value.extraMeta.uses || ""),
+            description: value.description,
+            mobility: String(value.extraMeta.wheels || ""),
+            finish: String(value.extraMeta.finish || ""),
+            characteristics: value.features.join(" · "),
+            configurations: String(value.extraMeta.options || ""),
+            warranty: String(value.extraMeta.warranty || ""),
+          }}
+          manualUrl={value.datasheetUrl}
+          manualName={value.datasheetName}
+          onManual={(datasheetUrl, datasheetName) => onChange({ ...value, datasheetUrl, datasheetName })}
+          canGenerate={!!productId}
+          generating={generating}
+          onRegenerate={() => onRegenerate?.()}
+        />
       </Section>
     </div>
   )

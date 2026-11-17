@@ -22,6 +22,37 @@ export interface VariantRow { id: string; title: string; sku: string; price: str
 
 export const FEATURED_COLLECTION_HANDLE = "destacados"
 
+/** Technical datasheet settings (metadata.datasheet). code/auto_url/file_id/hash/generated_at are written by the backend. */
+export interface Datasheet {
+  mode: "auto" | "manual"
+  approved: boolean
+  version: string
+  family: string
+  reference: string
+  intended_use: string
+  description: string
+  structure: string
+  configuration: string
+  mobility: string
+  finish: string
+  characteristics: string
+  extra_specs: { label: string; value: string }[]
+  drawings: { front: string | null; side: string | null; top: string | null }
+  hygiene: string
+  safety: string
+  maintenance: string
+  warranty: string
+  configurations: string
+  notes: string
+  code?: string
+  auto_url?: string
+  file_id?: string
+  hash?: string
+  generated_at?: string
+}
+
+export const emptyDatasheet = (): Datasheet => ({ mode: "auto", approved: false, version: "01", family: "", reference: "", intended_use: "", description: "", structure: "", configuration: "", mobility: "", finish: "", characteristics: "", extra_specs: [], drawings: { front: null, side: null, top: null }, hygiene: "", safety: "", maintenance: "", warranty: "", configurations: "", notes: "" })
+
 export interface ImageItem { url: string; alt: string; width?: number | null; height?: number | null }
 
 /** Everything the four-block form edits. Unknown metadata keys from older products are kept in `extraMeta`. */
@@ -51,6 +82,7 @@ export interface WebProductForm {
   thumbnail: string | null
   datasheetUrl: string | null
   datasheetName: string | null
+  datasheet: Datasheet
   // 04 Disponibilidad y publicación
   availability: Availability
   showPrice: boolean
@@ -72,7 +104,7 @@ export interface WebProductForm {
 export const emptyForm = (): WebProductForm => ({
   title: "", categoryId: null, subtitle: "", subtitleCustom: false, material: "", description: "",
   dimLength: "", dimDepth: "", dimHeight: "", dimAdjustable: false, dimLengthMax: "", dimDepthMax: "", dimHeightMax: "", dimNote: "", features: [], optionTitle: "Modelo", variants: [{ id: "", title: "Estándar", sku: "", price: "", length: "", width: "", height: "" }],
-  images: [], thumbnail: null, datasheetUrl: null, datasheetName: null,
+  images: [], thumbnail: null, datasheetUrl: null, datasheetName: null, datasheet: emptyDatasheet(),
   availability: "on_order", showPrice: false, featured: false, homeOrder: "", salesChannelIds: [], seoTitle: "", seoTitleCustom: false, handle: "", handleCustom: false,
   seoDescription: "", seoDescriptionCustom: false, status: "draft", extraMeta: {},
 })
@@ -144,7 +176,7 @@ export const dimensionsLine = (f: Pick<WebProductForm, "dimLength" | "dimDepth" 
 
 export type AdminProduct = HttpTypes.AdminProduct
 
-const FORM_META_KEYS = ["material", "dim_length", "dim_depth", "dim_height", "dim_adjustable", "dim_length_max", "dim_depth_max", "dim_height_max", "dim_note", "features", "availability", "show_price", "seo_title", "seo_title_custom", "seo_description", "seo_description_custom", "handle_custom", "subtitle_custom", "image_alts", "datasheet_url", "datasheet_name", "dimensions", "home_order"]
+const FORM_META_KEYS = ["material", "dim_length", "dim_depth", "dim_height", "dim_adjustable", "dim_length_max", "dim_depth_max", "dim_height_max", "dim_note", "features", "availability", "show_price", "seo_title", "seo_title_custom", "seo_description", "seo_description_custom", "handle_custom", "subtitle_custom", "image_alts", "datasheet_url", "datasheet_name", "datasheet", "dimensions", "home_order"]
 
 const str = (v: unknown) => (v === null || v === undefined ? "" : String(v))
 const numStr = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? fmt(v) : typeof v === "string" && num(v) !== null ? v : "")
@@ -176,6 +208,8 @@ export const toForm = (p: AdminProduct): WebProductForm => {
     thumbnail: p.thumbnail || p.images?.[0]?.url || null,
     datasheetUrl: str(m.datasheet_url) || null,
     datasheetName: str(m.datasheet_name) || null,
+    // Products with an uploaded PDF and no datasheet settings keep working as "PDF propio"
+    datasheet: { ...emptyDatasheet(), ...(m.datasheet && typeof m.datasheet === "object" ? (m.datasheet as Partial<Datasheet>) : m.datasheet_url ? { mode: "manual" as const } : {}), drawings: { front: null, side: null, top: null, ...((m.datasheet as Partial<Datasheet> | undefined)?.drawings || {}) } },
     availability: (["available", "on_order", "custom", "unavailable"].includes(str(m.availability)) ? (m.availability as Availability) : "on_order"),
     showPrice: m.show_price === true,
     featured: p.collection?.handle === FEATURED_COLLECTION_HANDLE,
@@ -213,6 +247,7 @@ export const toPayload = (f: WebProductForm, category: Category | null, salesCha
     image_alts,
     datasheet_url: f.datasheetUrl || null,
     datasheet_name: f.datasheetName || null,
+    datasheet: f.datasheet,
     home_order: f.featured ? num(f.homeOrder) ?? 0 : null,
   }
   const optionTitle = f.optionTitle.trim() || "Modelo"
@@ -292,6 +327,9 @@ export const defaultSalesChannelId = async (): Promise<string | null> => {
 }
 
 export const productPreviewUrl = (handle: string) => api<{ url: string | null }>(`/admin/product-preview-url/${encodeURIComponent(handle)}`)
+
+/** Builds/links the datasheet PDF (only when its content changed, unless `force`). */
+export const generateDatasheet = (id: string, force = false) => api<{ generated: boolean; mode: string; url?: string }>(`/admin/web-products/${id}/datasheet`, { method: "POST", body: { force } })
 
 export const listMaterials = () => api<{ materials: Material[] }>("/admin/materials")
 export const createMaterial = (name: string) => api<{ material: Material }>("/admin/materials", { method: "POST", body: { name } })
