@@ -66,7 +66,15 @@ export const toInput = (o: PurchaseOrder): PurchaseInput => ({
   order_date: toISODate(o.order_date), expected_date: toISODate(o.expected_date), payment_terms: o.payment_terms || "",
   lines: o.lines || [], notes_internal: o.notes_internal || "", invoice_reference: o.invoice_reference || "",
 })
-export const toBody = (f: PurchaseInput) => ({ ...f, supplier_id: f.supplier_id || null, expected_date: f.expected_date || null, lines: f.lines.map((l) => ({ ...l, quantity: Number(l.quantity) || 0, unit_price: Number(l.unit_price) || 0, discount_pct: Number(l.discount_pct) || 0, tax_rate: Number(l.tax_rate) || 0 })) })
+
+/** Empty lines (no name, no price) are dropped on save; a line with data but no name blocks saving with a clear message. */
+export const isBlankLine = (l: PurchaseLine) => !String(l.title || "").trim() && !(Number(l.unit_price) > 0) && !String(l.description || "").trim()
+export const lineProblem = (lines: PurchaseLine[]): string | null => {
+  const i = lines.findIndex((l) => !isBlankLine(l) && !String(l.title || "").trim())
+  return i >= 0 ? `La línea ${i + 1} no tiene nombre de producto o servicio. Escríbalo o quite la línea.` : null
+}
+
+export const toBody = (f: PurchaseInput) => ({ ...f, supplier_id: f.supplier_id || null, expected_date: f.expected_date || null, lines: f.lines.filter((l) => !isBlankLine(l)).map((l) => ({ ...l, title: l.title.trim(), quantity: Number(l.quantity) || 0, unit_price: Number(l.unit_price) || 0, discount_pct: Number(l.discount_pct) || 0, tax_rate: Number(l.tax_rate) || 0 })) })
 export const supplierToInput = (s: Supplier): SupplierInput => ({ name: s.name || "", ruc: s.ruc || "", dv: s.dv || "", contact_name: s.contact_name || "", phone: s.phone || "", email: s.email || "", address: s.address || "", payment_terms: s.payment_terms || "", notes: s.notes || "" })
 export const supplierFields = (s: Supplier) => ({ supplier_id: s.id, supplier_name: s.name, supplier_ruc: s.ruc ? `${s.ruc}${s.dv ? ` DV ${s.dv}` : ""}` : "", supplier_contact: s.contact_name || "", supplier_phone: s.phone || "", supplier_email: s.email || "", supplier_address: s.address || "" })
 export const itemToInput = (it: PurchaseItem): ItemInput => ({ name: it.name, ref: it.ref || "", description: it.description || "", unit: it.unit || "Unidades", category: it.category || "", last_price: it.last_price != null ? String(it.last_price) : "" })

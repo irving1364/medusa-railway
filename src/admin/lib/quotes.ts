@@ -157,11 +157,19 @@ export const toInput = (q: Quote): QuoteInput => ({
   intro_text: q.intro_text || "", warranty_text: q.warranty_text || "", payment_terms: q.payment_terms || "", general_terms: q.general_terms || "", notes_internal: q.notes_internal || "",
 })
 
+
+/** Empty lines (no name, no price) are dropped on save; a line with data but no name blocks saving with a clear message. */
+export const isBlankLine = (l: QuoteLine) => !String(l.title || "").trim() && !(Number(l.unit_price) > 0) && !String(l.description || "").trim()
+export const lineProblem = (lines: QuoteLine[]): string | null => {
+  const i = lines.findIndex((l) => !isBlankLine(l) && !String(l.title || "").trim())
+  return i >= 0 ? `La línea ${i + 1} no tiene nombre de producto o servicio. Escríbalo o quite la línea.` : null
+}
+
 export const toBody = (f: QuoteInput) => ({
   ...f,
   customer_id: f.customer_id || null,
   valid_until: f.valid_until || null,
-  lines: f.lines.map((l) => ({ ...l, quantity: Number(l.quantity) || 0, unit_price: Number(l.unit_price) || 0, discount_pct: Number(l.discount_pct) || 0, tax_rate: Number(l.tax_rate) || 0 })),
+  lines: f.lines.filter((l) => !isBlankLine(l)).map((l) => ({ ...l, title: l.title.trim(), quantity: Number(l.quantity) || 0, unit_price: Number(l.unit_price) || 0, discount_pct: Number(l.discount_pct) || 0, tax_rate: Number(l.tax_rate) || 0 })),
 })
 
 const round = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100

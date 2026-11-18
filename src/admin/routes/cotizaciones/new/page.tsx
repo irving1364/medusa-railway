@@ -3,7 +3,7 @@ import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import QuoteForm from "../../../components/quote-form"
 import { defaultCompanyCode, getCompany } from "../../../lib/companies"
-import { createQuote, emptyQuote, errorMessage, listProfiles, toBody, type QuoteInput, type QuoteProfile, type QuoteStore } from "../../../lib/quotes"
+import { createQuote, emptyQuote, errorMessage, listProfiles, toBody, type QuoteInput, type QuoteProfile, type QuoteStore, lineProblem } from "../../../lib/quotes"
 
 /** /cotizaciones/new — the number is assigned on first save. */
 const NewQuotePage = () => {
@@ -30,6 +30,8 @@ const NewQuotePage = () => {
 
   const save = async () => {
     if (!value.customer_name.trim()) { toast.error("Escriba el nombre del cliente"); return }
+    const problem = lineProblem(value.lines)
+    if (problem) { toast.error(problem); return }
     setBusy(true)
     try {
       const { quote } = await createQuote(toBody(value))

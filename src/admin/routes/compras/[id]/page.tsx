@@ -5,7 +5,7 @@ import PurchaseForm from "../../../components/purchase-form"
 import PurchaseSendDialog from "../../../components/purchase-send-dialog"
 import PurchaseStatusCard from "../../../components/purchase-status-card"
 import { companyColor, companyLabel, listCompanies, type Company } from "../../../lib/companies"
-import { STATUS, deleteOrder, duplicateOrder, errorMessage, getOrder, listPurchaseProfiles, orderPdfUrl, toBody, toInput, updateOrder, type Payment, type PurchaseEvent, type PurchaseInput, type PurchaseOrder, type PurchaseProfile, type Receipt } from "../../../lib/purchases"
+import { STATUS, deleteOrder, duplicateOrder, errorMessage, getOrder, listPurchaseProfiles, orderPdfUrl, toBody, toInput, updateOrder, type Payment, type PurchaseEvent, type PurchaseInput, type PurchaseOrder, type PurchaseProfile, type Receipt, lineProblem } from "../../../lib/purchases"
 
 /** /compras/:id — edit, PDF, send, confirm, receive, pay, history. */
 const EditPurchasePage = () => {
@@ -40,6 +40,8 @@ const EditPurchasePage = () => {
   const save = async () => {
     if (!order || !value) return
     if (!value.supplier_name.trim()) { toast.error("Indique el proveedor"); return }
+    const problem = lineProblem(value.lines)
+    if (problem) { toast.error(problem); return }
     setBusy(true)
     try { const { order: updated } = await updateOrder(order.id, toBody(value)); apply(updated); toast.success("Cambios guardados"); load() } catch (e) { toast.error(errorMessage(e, "No se pudo guardar")) } finally { setBusy(false) }
   }

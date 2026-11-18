@@ -3,7 +3,7 @@ import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import PurchaseForm from "../../../components/purchase-form"
 import { defaultCompanyCode, getCompany, type CompanyCode } from "../../../lib/companies"
-import { createOrder, emptyOrder, errorMessage, listPurchaseProfiles, toBody, type PurchaseInput, type PurchaseProfile } from "../../../lib/purchases"
+import { createOrder, emptyOrder, errorMessage, listPurchaseProfiles, toBody, type PurchaseInput, type PurchaseProfile, lineProblem } from "../../../lib/purchases"
 
 /** /compras/new — the number is assigned on first save. */
 const NewPurchasePage = () => {
@@ -30,6 +30,8 @@ const NewPurchasePage = () => {
 
   const save = async () => {
     if (!value.supplier_name.trim()) { toast.error("Indique el proveedor"); return }
+    const problem = lineProblem(value.lines)
+    if (problem) { toast.error(problem); return }
     setBusy(true)
     try { const { order } = await createOrder(toBody(value)); toast.success(`Orden ${order.number} creada`); navigate(`/compras/${order.id}`, { replace: true }) } catch (e) { toast.error(errorMessage(e, "No se pudo crear")) } finally { setBusy(false) }
   }

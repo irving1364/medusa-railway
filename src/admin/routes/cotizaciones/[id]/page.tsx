@@ -4,7 +4,7 @@ import { useNavigate, useParams } from "react-router-dom"
 import QuoteForm from "../../../components/quote-form"
 import QuoteSendDialog from "../../../components/quote-send-dialog"
 import QuoteStatusCard from "../../../components/quote-status-card"
-import { STATUS, deleteQuote, duplicateQuote, errorMessage, getQuote, listProfiles, quotePdfUrl, storeLabel, toBody, toInput, updateQuote, type Quote, type QuoteInput, type QuoteProfile } from "../../../lib/quotes"
+import { STATUS, deleteQuote, duplicateQuote, errorMessage, getQuote, listProfiles, quotePdfUrl, storeLabel, toBody, toInput, updateQuote, type Quote, type QuoteInput, type QuoteProfile, lineProblem } from "../../../lib/quotes"
 
 /** /cotizaciones/:id — edit, preview PDF, send, change status, duplicate, delete. */
 const EditQuotePage = () => {
@@ -37,6 +37,8 @@ const EditQuotePage = () => {
   const save = async () => {
     if (!quote || !value) return
     if (!value.customer_name.trim()) { toast.error("Escriba el nombre del cliente"); return }
+    const problem = lineProblem(value.lines)
+    if (problem) { toast.error(problem); return }
     setBusy(true)
     try {
       const { quote: updated } = await updateQuote(quote.id, toBody(value))
