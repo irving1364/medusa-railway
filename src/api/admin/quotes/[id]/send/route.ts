@@ -4,7 +4,7 @@ import { MedusaError } from "@medusajs/framework/utils"
 import { Resend } from "resend"
 import { renderQuotePdf } from "../../../../../modules/quote/pdf"
 import type { QuoteStore } from "../../../../../modules/quote/service"
-import { actorEmail, fmtDate, fmtMoney, identityFor, quoteService, serialize, type Loose } from "../../helpers"
+import { actorEmail, ensurePortalToken, fmtDate, fmtMoney, identityFor, portalUrl, quoteService, serialize, type Loose } from "../../helpers"
 
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c] as string))
 const paragraphs = (t: string) => t.split(/\n{2,}/).map((p) => `<p style="margin:0 0 12px">${esc(p).replace(/\n/g, "<br>")}</p>`).join("")
@@ -15,7 +15,8 @@ const paragraphs = (t: string) => t.split(/\n{2,}/).map((p) => `<p style="margin
  */
 export async function POST(req: AuthenticatedMedusaRequest<{ to: string[]; cc?: string[]; subject: string; message: string }>, res: MedusaResponse) {
   const service = quoteService(req)
-  const quote = await service.retrieveQuote(req.params.id)
+  const quote = await ensurePortalToken(req, await service.retrieveQuote(req.params.id))
+  const link = portalUrl(quote.public_token)
   if (!(quote.lines as unknown as Loose[])?.length) throw new MedusaError(MedusaError.Types.INVALID_DATA, "Agregue al menos una línea antes de enviar")
   if (quote.status === "approved" || quote.status === "rejected") throw new MedusaError(MedusaError.Types.NOT_ALLOWED, "La cotización ya está cerrada; reábrala para enviarla de nuevo")
   if (!process.env.RESEND_API_KEY) throw new MedusaError(MedusaError.Types.NOT_ALLOWED, "El envío de correo no está configurado (RESEND_API_KEY)")
@@ -39,6 +40,7 @@ export async function POST(req: AuthenticatedMedusaRequest<{ to: string[]; cc?: 
         <tr><td style="padding:4px 12px 4px 0;color:#5C6370">Válida hasta</td><td style="padding:4px 0">${fmtDate(quote.valid_until) || "—"}</td></tr>
         <tr><td style="padding:4px 12px 4px 0;color:#5C6370">Total</td><td style="padding:4px 0"><strong>${fmtMoney(Number(quote.total))}</strong> (ITBMS incluido)</td></tr>
       </table>
+      ${link ? `<p style="margin:20px 0"><a href="${link}" style="display:inline-block;background:${/^#[0-9a-f]{6}$/i.test(String(profile.company?.color || "")) ? profile.company.color : "#2F4273"};color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:999px;font-weight:bold">Ver y aprobar la cotización en línea</a></p>` : ""}
       <p style="margin:0 0 12px">Adjuntamos la cotización en PDF.${pdfUrl ? ` También puede verla en <a href="${pdfUrl}" style="color:#2F4273">este enlace</a>.` : ""}</p>
       ${profile.email_signature ? paragraphs(String(profile.email_signature)) : `<p style="margin:16px 0 0">${esc(profile.brand_line)}<br><span style="color:#5C6370">${esc(profile.whatsapp ? `WhatsApp ${profile.whatsapp}` : "")}${profile.whatsapp && profile.email ? " · " : ""}${esc(profile.email || "")}</span></p>`}
     </div>`

@@ -1,6 +1,6 @@
 import type { AuthenticatedMedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { MedusaError } from "@medusajs/framework/utils"
-import { actorEmail, quoteService, serialize, type Loose } from "../../helpers"
+import { actorEmail, ensurePortalToken, quoteService, serialize, type Loose } from "../../helpers"
 
 const ALLOWED: Record<string, string[]> = {
   draft: ["sent", "approved", "rejected"],
@@ -25,7 +25,8 @@ export async function POST(req: AuthenticatedMedusaRequest<{ status: string; not
   if (status === "approved") patch.approved_at = now
   if (status === "rejected") patch.rejected_at = now
   if (status === "draft" && (quote.status === "approved" || quote.status === "rejected")) { patch.version = (Number(quote.version) || 1) + 1; patch.approved_at = null; patch.rejected_at = null }
-  const updated = await service.updateQuotes(patch)
+  let updated: Loose = await service.updateQuotes(patch)
+  if (status === "sent") updated = await ensurePortalToken(req, updated)
   await service.createQuoteRevisions({ quote_id: quote.id, version: updated.version, action: `status:${status}`, snapshot: updated as Loose, note: note || null, actor_email: await actorEmail(req) } as Loose)
   res.json({ quote: serialize(updated) })
 }

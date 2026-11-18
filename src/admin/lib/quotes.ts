@@ -53,6 +53,15 @@ export interface Quote {
   approved_at: string | null
   rejected_at: string | null
   last_pdf_url: string | null
+  portal_url: string | null
+  viewed_at: string | null
+  view_count: number
+  responded_at: string | null
+  response_name: string | null
+  response_comment: string | null
+  changes_requested_at: string | null
+  converted_at: string | null
+  order_display_id: number | null
   created_at: string
   updated_at: string
 }
@@ -179,6 +188,8 @@ export const deleteQuote = (id: string) => api<{ id: string }>(`/admin/quotes/${
 export const setQuoteStatus = (id: string, status: QuoteStatus, note?: string) => api<{ quote: Quote }>(`/admin/quotes/${id}/status`, { method: "POST", body: { status, note: note || null } })
 export const sendQuote = (id: string, body: { to: string[]; cc?: string[]; subject: string; message: string }) => api<{ quote: Quote; pdf_url: string | null }>(`/admin/quotes/${id}/send`, { method: "POST", body })
 export const duplicateQuote = (id: string) => api<{ quote: Quote }>(`/admin/quotes/${id}/duplicate`, { method: "POST" })
+export const convertQuote = (id: string) => api<{ quote: Quote; order: { id: string; display_id: number; total: number } }>(`/admin/quotes/${id}/convert`, { method: "POST" })
+export const createQuoteLink = (id: string) => api<{ quote: Quote }>(`/admin/quotes/${id}/link`, { method: "POST" })
 export const listRevisions = (id: string) => api<{ revisions: Revision[] }>(`/admin/quotes/${id}/revisions`)
 export const quotePdfUrl = (id: string, download = false) => `/admin/quotes/${id}/pdf${download ? "?download=1" : ""}`
 export const listProfiles = () => api<{ profiles: QuoteProfile[] }>("/admin/quote-profiles")

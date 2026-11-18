@@ -4,6 +4,9 @@ import { CreateProjectSchema, UpdateProjectSchema, ProjectStatusSchema } from ".
 import { CreateMaterialSchema, UpdateMaterialSchema, CreateRedirectSchema } from "./admin/materials/validators"
 import { CreateQuoteSchema, UpdateQuoteSchema, QuoteStatusSchema, SendQuoteSchema, ProfileSchema } from "./admin/quotes/validators"
 import { UpdateCompanySchema } from "./admin/companies/validators"
+import { z } from "zod"
+
+const QuoteResponseSchema = z.object({ action: z.enum(["accept", "changes", "reject"]), name: z.string().trim().min(2).max(120), comment: z.string().max(2000).nullable().optional() })
 import { SupplierSchema, UpdateSupplierSchema, ItemSchema, UpdateItemSchema, CreatePurchaseOrderSchema, UpdatePurchaseOrderSchema, PurchaseStatusSchema, SendPurchaseSchema, ReceiptSchema, PaymentSchema, PurchaseProfileSchema } from "./admin/purchases/validators"
 
 // Files stay in memory (same approach as the core /admin/uploads route) and are handed to the file module as base64.
@@ -23,6 +26,7 @@ export default defineMiddlewares({
     { matcher: "/admin/quotes/:id/status", method: "POST", middlewares: [validateAndTransformBody(QuoteStatusSchema)] },
     { matcher: "/admin/quotes/:id/send", method: "POST", middlewares: [validateAndTransformBody(SendQuoteSchema)] },
     { matcher: "/admin/quote-profiles/:store", method: "POST", middlewares: [validateAndTransformBody(ProfileSchema)] },
+    { matcher: "/store/quotes/:token/respond", method: "POST", middlewares: [validateAndTransformBody(QuoteResponseSchema)] },
     { matcher: "/admin/companies/:code", method: "POST", middlewares: [validateAndTransformBody(UpdateCompanySchema)] },
     { matcher: "/admin/suppliers", method: "POST", middlewares: [validateAndTransformBody(SupplierSchema)] },
     { matcher: "/admin/suppliers/:id", method: "POST", middlewares: [validateAndTransformBody(UpdateSupplierSchema)] },

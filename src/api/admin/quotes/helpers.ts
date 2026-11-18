@@ -68,7 +68,7 @@ export const effectiveStatus = (q: Loose): string => {
 }
 
 /** Numeric columns come back from Postgres as strings; the admin and emails expect numbers. */
-export const serialize = (q: Loose) => ({ ...q, subtotal: Number(q.subtotal) || 0, discount_total: Number(q.discount_total) || 0, tax_total: Number(q.tax_total) || 0, total: Number(q.total) || 0, version: Number(q.version) || 1, effective_status: effectiveStatus(q), totals: computeTotals((q.lines || []) as QuoteLine[]) })
+export const serialize = (q: Loose) => ({ ...q, portal_url: portalUrl(q.public_token), view_count: Number(q.view_count) || 0, subtotal: Number(q.subtotal) || 0, discount_total: Number(q.discount_total) || 0, tax_total: Number(q.tax_total) || 0, total: Number(q.total) || 0, version: Number(q.version) || 1, effective_status: effectiveStatus(q), totals: computeTotals((q.lines || []) as QuoteLine[]) })
 
 const toDate = (v: unknown): Date | null => {
   if (!v) return null
@@ -95,3 +95,33 @@ export const bodyToRow = (body: Loose): Loose => {
 
 export const fmtMoney = (n: number) => { const v = Math.round((Number(n) || 0) * 100) / 100; const [i, f = ""] = Math.abs(v).toFixed(2).split("."); return `$ ${v < 0 ? "-" : ""}${i.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}.${f}` }
 export const fmtDate = (d: string | Date | null | undefined) => { if (!d) return ""; const t = new Date(new Date(d).getTime() - 5 * 3600000); return `${String(t.getUTCDate()).padStart(2, "0")}/${String(t.getUTCMonth() + 1).padStart(2, "0")}/${t.getUTCFullYear()}` }
+
+/* ─── Customer portal ─────────────────────────────────────────────────────── */
+
+export const STOREFRONT_URL = (process.env.STOREFRONT_URL || "https://karvenmedical.com").replace(/\/$/, "")
+export const portalUrl = (token: string | null | undefined) => (token ? `${STOREFRONT_URL}/cotizacion/${token}` : null)
+
+/** Gives the quote a private, unguessable link token (once). */
+export async function ensurePortalToken(req: { scope: any }, quote: Loose): Promise<Loose> {
+  if (quote.public_token) return quote
+  const { randomBytes } = await import("node:crypto")
+  return quoteService(req).updateQuotes({ id: quote.id, public_token: randomBytes(18).toString("base64url") } as Loose)
+}
+
+/** Internal email to the company (its public email + cc list) when a customer answers from the portal. */
+export async function notifyCompany(profile: Loose, subject: string, lines: string[]): Promise<void> {
+  if (!process.env.RESEND_API_KEY) return
+  const to = [profile.email, ...(profile.cc_email ? String(profile.cc_email).split(/[,;]\s*/) : []), process.env.STORE_NOTIFICATION_EMAIL || "karvenmedicalpa@gmail.com"].filter(Boolean) as string[]
+  const { Resend } = await import("resend")
+  const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c] as string))
+  try {
+    await new Resend(process.env.RESEND_API_KEY).emails.send({
+      from: profile.from_email || process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev",
+      to: [...new Set(to)],
+      subject,
+      html: `<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.5;color:#1F2430">${lines.map((l) => `<p style="margin:0 0 10px">${esc(l).replace(/\n/g, "<br>")}</p>`).join("")}</div>`,
+    })
+  } catch (e) {
+    console.error("[quotes] notifyCompany failed", e)
+  }
+}

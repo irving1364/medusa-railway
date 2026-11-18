@@ -37,6 +37,15 @@ const Quote = model.define("quote", {
   approved_at: model.dateTime().nullable(),
   rejected_at: model.dateTime().nullable(),
   last_pdf_url: model.text().nullable(),
+  public_token: model.text().nullable(),
+  viewed_at: model.dateTime().nullable(),
+  view_count: model.number().default(0),
+  responded_at: model.dateTime().nullable(),
+  response_name: model.text().nullable(),
+  response_comment: model.text().nullable(),
+  changes_requested_at: model.dateTime().nullable(),
+  converted_at: model.dateTime().nullable(),
+  order_display_id: model.number().nullable(),
   metadata: model.json().nullable(),
 })
 
