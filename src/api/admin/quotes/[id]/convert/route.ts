@@ -41,7 +41,8 @@ export async function POST(req: AuthenticatedMedusaRequest, res: MedusaResponse)
     return {
       title: `${l.ref ? `[${l.ref}] ` : ""}${l.title}`.slice(0, 250),
       quantity: Number(l.quantity),
-      unit_price: round(net * (1 + rate / 100)),
+      // 4 decimals so quantity × unit price adds up to the quoted total (Medusa stores high-precision amounts)
+      unit_price: Math.round(net * (1 + rate / 100) * 10000) / 10000,
       is_tax_inclusive: true,
       tax_lines: rate ? [{ code: "ITBMS", rate, description: `ITBMS ${rate}%` }] : [],
       metadata: { quote_line_id: l.id, description: l.description || null, unit: l.unit, discount_pct: l.discount_pct || 0, product_id: l.product_id || null, variant_id: l.variant_id || null },
