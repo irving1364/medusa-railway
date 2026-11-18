@@ -309,6 +309,9 @@ export default function WebProductForm({ value, onChange, categories, materials,
                 )}
               </div>
             </div>
+            <Field label="Tiempo estimado de fabricación" hint="Se muestra en la web debajo de la medida. Vacío = no se muestra.">
+              <Input placeholder="10–15 días hábiles" value={value.leadTime} onChange={(e) => onChange({ ...value, leadTime: e.target.value })} />
+            </Field>
             <div className="rounded-md bg-ui-bg-subtle px-3 py-2">
               <Text size="xsmall" className="text-ui-fg-subtle">
                 {value.availability === "unavailable"
