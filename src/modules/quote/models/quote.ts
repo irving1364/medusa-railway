@@ -21,6 +21,8 @@ const Quote = model.define("quote", {
   issue_date: model.dateTime(),
   valid_until: model.dateTime().nullable(),
   salesperson: model.text().nullable(),
+  lead_time_type: model.text().default("fabrication"),
+  lead_time: model.text().nullable(),
   currency: model.text().default("pab"),
   lines: model.json(),
   subtotal: model.number().default(0),

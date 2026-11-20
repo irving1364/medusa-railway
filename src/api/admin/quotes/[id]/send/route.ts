@@ -4,7 +4,7 @@ import { MedusaError } from "@medusajs/framework/utils"
 import { Resend } from "resend"
 import { renderQuotePdf } from "../../../../../modules/quote/pdf"
 import type { QuoteStore } from "../../../../../modules/quote/service"
-import { actorEmail, ensurePortalToken, fmtDate, fmtMoney, identityFor, portalUrl, quoteService, serialize, type Loose } from "../../helpers"
+import { actorEmail, ensurePortalToken, leadTimeLabel, fmtDate, fmtMoney, identityFor, portalUrl, quoteService, serialize, type Loose } from "../../helpers"
 
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c] as string))
 const paragraphs = (t: string) => t.split(/\n{2,}/).map((p) => `<p style="margin:0 0 12px">${esc(p).replace(/\n/g, "<br>")}</p>`).join("")
@@ -38,6 +38,7 @@ export async function POST(req: AuthenticatedMedusaRequest<{ to: string[]; cc?: 
         <tr><td style="padding:4px 12px 4px 0;color:#5C6370">Cotización</td><td style="padding:4px 0"><strong>${esc(quote.number)}</strong>${quote.version > 1 ? ` · versión ${quote.version}` : ""}</td></tr>
         <tr><td style="padding:4px 12px 4px 0;color:#5C6370">Fecha</td><td style="padding:4px 0">${fmtDate(quote.issue_date)}</td></tr>
         <tr><td style="padding:4px 12px 4px 0;color:#5C6370">Válida hasta</td><td style="padding:4px 0">${fmtDate(quote.valid_until) || "—"}</td></tr>
+        ${quote.lead_time ? `<tr><td style="padding:4px 12px 4px 0;color:#5C6370">${leadTimeLabel(quote.lead_time_type)}</td><td style="padding:4px 0">${esc(String(quote.lead_time))}</td></tr>` : ""}
         <tr><td style="padding:4px 12px 4px 0;color:#5C6370">Total</td><td style="padding:4px 0"><strong>${fmtMoney(Number(quote.total))}</strong> (ITBMS incluido)</td></tr>
       </table>
       ${link ? `<p style="margin:20px 0"><a href="${link}" style="display:inline-block;background:${/^#[0-9a-f]{6}$/i.test(String(profile.company?.color || "")) ? profile.company.color : "#2F4273"};color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:999px;font-weight:bold">Ver y aprobar la cotización en línea</a></p>` : ""}

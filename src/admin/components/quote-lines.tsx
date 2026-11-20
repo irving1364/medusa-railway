@@ -2,12 +2,13 @@ import type { HttpTypes } from "@medusajs/framework/types"
 import { Badge, Button, IconButton, Input, Text, Textarea, Tooltip } from "@medusajs/ui"
 import { ArrowDownMini, ArrowUpMini, Plus, Trash } from "@medusajs/icons"
 import { useEffect, useRef, useState } from "react"
-import { lineAmount, lineFromProduct, money, newLine, searchProducts, totalsOf, type QuoteLine } from "../lib/quotes"
+import { lineAmount, lineFromProduct, money, newLine, productLeadTime, searchProducts, totalsOf, type QuoteLine } from "../lib/quotes"
 
 interface Props {
   lines: QuoteLine[]
   taxRate: number
-  onChange: (lines: QuoteLine[]) => void
+  /** `leadTimeHint`: lead time of the catalogue product just added (prefills the quote's "Plazo estimado") */
+  onChange: (lines: QuoteLine[], leadTimeHint?: string) => void
   disabled?: boolean
 }
 
@@ -32,7 +33,7 @@ export default function QuoteLines({ lines, taxRate, onChange, disabled }: Props
     return () => document.removeEventListener("mousedown", close)
   }, [])
 
-  const add = (line: QuoteLine) => { onChange([...lines, line]); setQ(""); setOpen(false) }
+  const add = (line: QuoteLine, hint?: string) => { onChange([...lines, line], hint || undefined); setQ(""); setOpen(false) }
   const set = (i: number, patch: Partial<QuoteLine>) => onChange(lines.map((l, k) => (k === i ? { ...l, ...patch } : l)))
   const move = (i: number, dir: -1 | 1) => { const j = i + dir; if (j < 0 || j >= lines.length) return; const next = [...lines]; ;[next[i], next[j]] = [next[j], next[i]]; onChange(next) }
   const remove = (i: number) => onChange(lines.filter((_, k) => k !== i))
@@ -61,12 +62,12 @@ export default function QuoteLines({ lines, taxRate, onChange, disabled }: Props
                     {(p.variants || []).map((v) => {
                       const price = (v.prices || []).find((pr) => pr.currency_code === "pab")?.amount ?? (v.prices || [])[0]?.amount
                       return (
-                        <button key={v.id} type="button" onClick={() => add(lineFromProduct(p, v, taxRate))} className="rounded-full border border-ui-border-base px-2.5 py-1 text-xs hover:bg-ui-bg-subtle">
+                        <button key={v.id} type="button" onClick={() => add(lineFromProduct(p, v, taxRate), productLeadTime(p))} className="rounded-full border border-ui-border-base px-2.5 py-1 text-xs hover:bg-ui-bg-subtle">
                           {v.title}{v.sku ? <span className="ml-1 font-mono text-[10px] text-ui-fg-muted">{v.sku}</span> : null}{price != null ? <span className="ml-1 text-ui-fg-subtle">· {money(Number(price))}</span> : null}
                         </button>
                       )
                     })}
-                    {!(p.variants || []).length && <button type="button" onClick={() => add(lineFromProduct(p, undefined, taxRate))} className="rounded-full border border-ui-border-base px-2.5 py-1 text-xs hover:bg-ui-bg-subtle">Agregar</button>}
+                    {!(p.variants || []).length && <button type="button" onClick={() => add(lineFromProduct(p, undefined, taxRate), productLeadTime(p))} className="rounded-full border border-ui-border-base px-2.5 py-1 text-xs hover:bg-ui-bg-subtle">Agregar</button>}
                   </div>
                 </div>
               ))}

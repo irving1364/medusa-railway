@@ -1,7 +1,7 @@
 import type { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { MedusaError } from "@medusajs/framework/utils"
 import { computeTotals, lineAmount, type QuoteLine } from "../../../../modules/quote/service"
-import { effectiveStatus, identityFor, quoteService, type Loose } from "../../../admin/quotes/helpers"
+import { effectiveStatus, identityFor, leadTimeLabel, quoteService, type Loose } from "../../../admin/quotes/helpers"
 
 /** Finds a quote by its private link token; drafts are never exposed. */
 export async function quoteByToken(req: MedusaRequest): Promise<Loose> {
@@ -27,6 +27,8 @@ export async function publicQuote(req: MedusaRequest, quote: Loose) {
     customer_ruc: quote.customer_ruc,
     issue_date: quote.issue_date,
     valid_until: quote.valid_until,
+    lead_time: quote.lead_time || null,
+    lead_time_label: leadTimeLabel(quote.lead_time_type),
     intro_text: quote.intro_text,
     lines: lines.map((l) => ({ ref: l.ref, title: l.title, description: l.description, quantity: l.quantity, unit: l.unit, unit_price: l.unit_price, discount_pct: l.discount_pct, tax_rate: l.tax_rate, amount: lineAmount(l) })),
     totals: computeTotals(lines),

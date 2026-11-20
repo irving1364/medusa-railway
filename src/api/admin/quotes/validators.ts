@@ -29,6 +29,8 @@ export const QuoteBodySchema = z.object({
   issue_date: z.string().datetime().or(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)).optional(),
   valid_until: z.string().datetime().or(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)).nullable().optional(),
   salesperson: optText(120),
+  lead_time_type: z.enum(["fabrication", "delivery"]).optional(),
+  lead_time: optText(200),
   lines: z.array(QuoteLineSchema).max(200).default([]),
   intro_text: optText(2000),
   warranty_text: optText(2000),

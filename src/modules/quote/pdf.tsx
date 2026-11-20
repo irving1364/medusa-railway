@@ -40,7 +40,9 @@ const makeStyles = ({ StyleSheet }: PdfLib, NAVY: string) => StyleSheet.create({
   titleLabel: { fontSize: 9, color: MUTED, letterSpacing: 1, textTransform: "uppercase" },
   titleNumber: { fontSize: 22, fontWeight: 600, color: NAVY },
   titleCompany: { fontSize: 10, color: MUTED, marginTop: 2 },
-  infoBox: { flexDirection: "row", borderWidth: 1, borderColor: LINE, borderRadius: 6, paddingVertical: 8, paddingHorizontal: 12, marginBottom: 14 },
+  infoBox: { borderWidth: 1, borderColor: LINE, borderRadius: 6, paddingVertical: 8, paddingHorizontal: 12, marginBottom: 14 },
+  infoRow: { flexDirection: "row" },
+  leadRow: { flexDirection: "row", alignItems: "center", gap: 8, borderTopWidth: 1, borderTopColor: LINE, marginTop: 8, paddingTop: 8 },
   infoCell: { flex: 1 },
   infoLabel: { fontSize: 8.5, color: MUTED },
   infoValue: { fontSize: 9.5 },
@@ -78,7 +80,8 @@ const lines = (t: string | null | undefined) => (t || "").split(/\r?\n/).map((l)
 const accentOf = (profile: Loose) => (/^#[0-9a-f]{6}$/i.test(String(profile.company?.color || "")) ? String(profile.company.color) : DEFAULT_ACCENT)
 
 const build = (lib: PdfLib, accent: string) => {
-  const { Document, Image, Page, Text, View } = lib
+  // accent is also used by the clock icon
+  const { Document, Image, Page, Text, View, Svg, Circle, Line } = lib
   const s = makeStyles(lib, accent)
   const Bullets = ({ text }: { text: string | null | undefined }) => (
   <View>
@@ -98,11 +101,11 @@ const build = (lib: PdfLib, accent: string) => {
       <Page size="A4" style={s.page}>
         <View style={s.band} fixed />
         <View style={s.header} fixed>
-          <View>
+          <View style={{ flex: 1, paddingRight: 18 }}>
             <Text style={s.brand}>{profile.brand_line}</Text>
             {lines(profile.tagline).map((t, i) => <Text key={i} style={i === 0 ? s.tagline : s.taglineItalic}>{t}</Text>)}
           </View>
-          <View style={{ alignItems: "flex-end" }}>
+          <View style={{ alignItems: "flex-end", maxWidth: "46%" }}>
             {profile.logo_url ? <Image src={profile.logo_url} style={s.logo} /> : null}
             {profile.ruc ? <Text style={s.legal}><Text style={{ fontWeight: 600, color: INK }}>R.U.C. </Text>{profile.ruc}</Text> : null}
             {profile.address ? <Text style={s.legal}>{profile.address}</Text> : null}
@@ -125,9 +128,21 @@ const build = (lib: PdfLib, accent: string) => {
         </View>
 
         <View style={s.infoBox}>
-          <View style={s.infoCell}><Text style={s.infoLabel}>Fecha de cotización</Text><Text style={s.infoValue}>{date(q.issue_date)}</Text></View>
-          <View style={s.infoCell}><Text style={s.infoLabel}>Vencimiento</Text><Text style={s.infoValue}>{date(q.valid_until)}</Text></View>
-          <View style={s.infoCell}><Text style={s.infoLabel}>Vendedor</Text><Text style={s.infoValue}>{q.salesperson || profile.brand_line.split("|")[0].trim()}</Text></View>
+          <View style={s.infoRow}>
+            <View style={s.infoCell}><Text style={s.infoLabel}>Fecha de cotización</Text><Text style={s.infoValue}>{date(q.issue_date)}</Text></View>
+            <View style={s.infoCell}><Text style={s.infoLabel}>Vencimiento</Text><Text style={s.infoValue}>{date(q.valid_until)}</Text></View>
+            <View style={s.infoCell}><Text style={s.infoLabel}>Vendedor</Text><Text style={s.infoValue}>{q.salesperson || profile.brand_line.split("|")[0].trim()}</Text></View>
+          </View>
+          {q.lead_time ? (
+            <View style={s.leadRow}>
+              <Svg width={11} height={11} viewBox="0 0 24 24">
+                <Circle cx="12" cy="12" r="10" stroke={accent} strokeWidth={2.2} fill="none" />
+                <Line x1="12" y1="6" x2="12" y2="12" stroke={accent} strokeWidth={2.2} />
+                <Line x1="12" y1="12" x2="16" y2="14" stroke={accent} strokeWidth={2.2} />
+              </Svg>
+              <View><Text style={s.infoLabel}>{q.lead_time_type === "delivery" ? "Tiempo estimado de entrega" : "Tiempo estimado de fabricación"}</Text><Text style={s.infoValue}>{q.lead_time}</Text></View>
+            </View>
+          ) : null}
         </View>
 
         {q.intro_text ? <Text style={[s.p, { marginBottom: 10 }]}>{q.intro_text}</Text> : null}

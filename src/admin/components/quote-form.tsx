@@ -121,13 +121,24 @@ export default function QuoteForm({ value, onChange, profile, lockStore, disable
           <Field label="Fecha"><Input type="date" value={value.issue_date} onChange={(e) => onChange({ ...value, issue_date: e.target.value, valid_until: e.target.value ? addDaysISO(e.target.value, profile?.validity_days || 30) : value.valid_until })} disabled={disabled} /></Field>
           <Field label="Vencimiento"><Input type="date" value={value.valid_until} onChange={(e) => set("valid_until", e.target.value)} disabled={disabled} /></Field>
           <Field label="Vendedor" hint="Vacío = nombre de la tienda."><Input placeholder="FABMETAL" {...text("salesperson")} /></Field>
+          <div className="md:col-span-4 grid gap-4 md:grid-cols-[14rem_1fr]">
+            <Field label="Plazo estimado" hint="Define el título que sale en el PDF.">
+              <Select value={value.lead_time_type} onValueChange={(v) => set("lead_time_type", v as QuoteInput["lead_time_type"])} disabled={disabled}>
+                <Select.Trigger><Select.Value /></Select.Trigger>
+                <Select.Content><Select.Item value="fabrication">Fabricación</Select.Item><Select.Item value="delivery">Entrega</Select.Item></Select.Content>
+              </Select>
+            </Field>
+            <Field label={value.lead_time_type === "delivery" ? "Tiempo estimado de entrega" : "Tiempo estimado de fabricación"} hint="Texto libre. Se precarga con el tiempo del producto al agregarlo del catálogo; revíselo antes de enviar. Vacío = no sale en el PDF.">
+              <Input placeholder="7 a 10 días hábiles" {...text("lead_time")} />
+            </Field>
+          </div>
           <div className="md:col-span-4"><Field label="Texto introductorio (opcional)" hint="Aparece encima de la tabla de productos."><Textarea rows={2} placeholder="Atendiendo a su solicitud, presentamos la siguiente propuesta…" {...text("intro_text")} /></Field></div>
         </div>
       </Container>
 
       <Container className="divide-y p-0">
         <div className="px-6 py-4"><Heading level="h2">Productos y servicios</Heading><Text size="small" className="text-ui-fg-subtle">Desde el catálogo (referencia, descripción y precio precargados) o líneas libres para trabajos a medida.</Text></div>
-        <div className="px-6 py-4"><QuoteLines lines={value.lines} taxRate={profile?.tax_rate ?? 7} onChange={(lines) => set("lines", lines)} disabled={disabled} /></div>
+        <div className="px-6 py-4"><QuoteLines lines={value.lines} taxRate={profile?.tax_rate ?? 7} onChange={(lines, hint) => onChange({ ...value, lines, ...(hint && !value.lead_time.trim() ? { lead_time: hint } : {}) })} disabled={disabled} /></div>
       </Container>
 
       <Container className="divide-y p-0">

@@ -80,7 +80,7 @@ const toDate = (v: unknown): Date | null => {
 /** Body → row fields shared by create and update. */
 export const bodyToRow = (body: Loose): Loose => {
   const row: Loose = {}
-  for (const k of ["store", "customer_id", "customer_name", "customer_company", "customer_ruc", "customer_email", "customer_phone", "customer_address", "contact_name", "salesperson", "intro_text", "warranty_text", "payment_terms", "general_terms", "notes_internal", "metadata"]) {
+  for (const k of ["store", "customer_id", "customer_name", "customer_company", "customer_ruc", "customer_email", "customer_phone", "customer_address", "contact_name", "salesperson", "lead_time_type", "lead_time", "intro_text", "warranty_text", "payment_terms", "general_terms", "notes_internal", "metadata"]) {
     if (k in body) row[k] = body[k] === "" ? null : body[k]
   }
   if ("issue_date" in body) row.issue_date = toDate(body.issue_date) || new Date()
@@ -95,6 +95,8 @@ export const bodyToRow = (body: Loose): Loose => {
 
 export const fmtMoney = (n: number) => { const v = Math.round((Number(n) || 0) * 100) / 100; const [i, f = ""] = Math.abs(v).toFixed(2).split("."); return `$ ${v < 0 ? "-" : ""}${i.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}.${f}` }
 export const fmtDate = (d: string | Date | null | undefined) => { if (!d) return ""; const t = new Date(new Date(d).getTime() - 5 * 3600000); return `${String(t.getUTCDate()).padStart(2, "0")}/${String(t.getUTCMonth() + 1).padStart(2, "0")}/${t.getUTCFullYear()}` }
+
+export const leadTimeLabel = (type: unknown) => (type === "delivery" ? "Tiempo estimado de entrega" : "Tiempo estimado de fabricación")
 
 /* ─── Customer portal ─────────────────────────────────────────────────────── */
 

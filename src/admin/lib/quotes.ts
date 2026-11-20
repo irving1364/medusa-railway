@@ -37,6 +37,8 @@ export interface Quote {
   issue_date: string
   valid_until: string | null
   salesperson: string | null
+  lead_time_type: "fabrication" | "delivery"
+  lead_time: string | null
   currency: string
   lines: QuoteLine[]
   subtotal: number
@@ -111,6 +113,8 @@ export interface QuoteInput {
   issue_date: string
   valid_until: string
   salesperson: string
+  lead_time_type: "fabrication" | "delivery"
+  lead_time: string
   lines: QuoteLine[]
   intro_text: string
   warranty_text: string
@@ -145,7 +149,7 @@ export const emptyQuote = (store: QuoteStore, profile?: QuoteProfile | null): Qu
   const issue = todayISO()
   return {
     store, customer_id: null, customer_name: "", customer_company: "", customer_ruc: "", customer_email: "", customer_phone: "", customer_address: "", contact_name: "",
-    issue_date: issue, valid_until: addDaysISO(issue, profile?.validity_days || 30), salesperson: "", lines: [],
+    issue_date: issue, valid_until: addDaysISO(issue, profile?.validity_days || 30), salesperson: "", lead_time_type: "fabrication", lead_time: "", lines: [],
     intro_text: "", warranty_text: profile?.warranty_text || "", payment_terms: profile?.payment_terms || "", general_terms: profile?.general_terms || "", notes_internal: "",
   }
 }
@@ -153,7 +157,7 @@ export const emptyQuote = (store: QuoteStore, profile?: QuoteProfile | null): Qu
 export const toInput = (q: Quote): QuoteInput => ({
   store: q.store, customer_id: q.customer_id, customer_name: q.customer_name || "", customer_company: q.customer_company || "", customer_ruc: q.customer_ruc || "",
   customer_email: q.customer_email || "", customer_phone: q.customer_phone || "", customer_address: q.customer_address || "", contact_name: q.contact_name || "",
-  issue_date: toISODate(q.issue_date), valid_until: toISODate(q.valid_until), salesperson: q.salesperson || "", lines: q.lines || [],
+  issue_date: toISODate(q.issue_date), valid_until: toISODate(q.valid_until), salesperson: q.salesperson || "", lead_time_type: q.lead_time_type === "delivery" ? "delivery" : "fabrication", lead_time: q.lead_time || "", lines: q.lines || [],
   intro_text: q.intro_text || "", warranty_text: q.warranty_text || "", payment_terms: q.payment_terms || "", general_terms: q.general_terms || "", notes_internal: q.notes_internal || "",
 })
 
@@ -223,6 +227,9 @@ export const lineFromProduct = (p: HttpTypes.AdminProduct, v: HttpTypes.AdminPro
   const description = [titleLine, p.description || "", dims].filter(Boolean).join("\n\n")
   return newLine({ ref: v?.sku || null, title: p.title + (v && v.title && !/^(est[aá]ndar|default)/i.test(v.title) ? ` · ${v.title}` : ""), description, unit_price: Number(price) || 0, tax_rate: taxRate, product_id: p.id, variant_id: v?.id || null })
 }
+
+/** Lead time registered on the product (Productos web › Tiempo estimado de fabricación). */
+export const productLeadTime = (p: HttpTypes.AdminProduct) => { const v = (p.metadata as Record<string, unknown> | null)?.lead_time; return typeof v === "string" ? v.trim() : "" }
 
 export const errorMessage = (e: unknown, fallback: string) => {
   if (e && typeof e === "object" && "message" in e && typeof (e as { message: unknown }).message === "string") return (e as { message: string }).message
