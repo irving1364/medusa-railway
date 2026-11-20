@@ -91,6 +91,10 @@ export interface WebProductForm {
   homeOrder: string
   /** Shown under the size selector on the web, e.g. "10–15 días hábiles" */
   leadTime: string
+  /** "Uso recomendado" block on the product page */
+  uses: string
+  /** "Opciones" row of the specification table */
+  options: string
   /** Sales channels = companies whose web shows the product */
   salesChannelIds: string[]
   seoTitle: string
@@ -107,7 +111,7 @@ export const emptyForm = (): WebProductForm => ({
   title: "", categoryId: null, subtitle: "", subtitleCustom: false, material: "", description: "",
   dimLength: "", dimDepth: "", dimHeight: "", dimAdjustable: false, dimLengthMax: "", dimDepthMax: "", dimHeightMax: "", dimNote: "", features: [], optionTitle: "Modelo", variants: [{ id: "", title: "Estándar", sku: "", price: "", length: "", width: "", height: "" }],
   images: [], thumbnail: null, datasheetUrl: null, datasheetName: null, datasheet: emptyDatasheet(),
-  availability: "on_order", showPrice: false, featured: false, homeOrder: "", leadTime: "", salesChannelIds: [], seoTitle: "", seoTitleCustom: false, handle: "", handleCustom: false,
+  availability: "on_order", showPrice: false, featured: false, homeOrder: "", leadTime: "", uses: "", options: "", salesChannelIds: [], seoTitle: "", seoTitleCustom: false, handle: "", handleCustom: false,
   seoDescription: "", seoDescriptionCustom: false, status: "draft", extraMeta: {},
 })
 
@@ -178,7 +182,7 @@ export const dimensionsLine = (f: Pick<WebProductForm, "dimLength" | "dimDepth" 
 
 export type AdminProduct = HttpTypes.AdminProduct
 
-const FORM_META_KEYS = ["material", "dim_length", "dim_depth", "dim_height", "dim_adjustable", "dim_length_max", "dim_depth_max", "dim_height_max", "dim_note", "features", "availability", "show_price", "seo_title", "seo_title_custom", "seo_description", "seo_description_custom", "handle_custom", "subtitle_custom", "image_alts", "datasheet_url", "datasheet_name", "datasheet", "dimensions", "home_order", "lead_time"]
+const FORM_META_KEYS = ["material", "dim_length", "dim_depth", "dim_height", "dim_adjustable", "dim_length_max", "dim_depth_max", "dim_height_max", "dim_note", "features", "availability", "show_price", "seo_title", "seo_title_custom", "seo_description", "seo_description_custom", "handle_custom", "subtitle_custom", "image_alts", "datasheet_url", "datasheet_name", "datasheet", "dimensions", "home_order", "lead_time", "uses", "options"]
 
 const str = (v: unknown) => (v === null || v === undefined ? "" : String(v))
 const numStr = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? fmt(v) : typeof v === "string" && num(v) !== null ? v : "")
@@ -218,6 +222,8 @@ export const toForm = (p: AdminProduct): WebProductForm => {
     salesChannelIds: (p.sales_channels || []).map((c) => c.id),
     homeOrder: numStr(m.home_order),
     leadTime: str(m.lead_time),
+    uses: str(m.uses),
+    options: str(m.options),
     seoTitle: str(m.seo_title), seoTitleCustom: m.seo_title_custom === true,
     handle: p.handle || "", handleCustom: m.handle_custom === true,
     seoDescription: str(m.seo_description), seoDescriptionCustom: m.seo_description_custom === true,
@@ -253,6 +259,8 @@ export const toPayload = (f: WebProductForm, category: Category | null, salesCha
     datasheet: f.datasheet,
     home_order: f.featured ? num(f.homeOrder) ?? 0 : null,
     lead_time: f.leadTime.trim() || null,
+    uses: f.uses.trim() || null,
+    options: f.options.trim() || null,
   }
   const optionTitle = f.optionTitle.trim() || "Modelo"
   const rows = f.variants.filter((v) => v.title.trim())

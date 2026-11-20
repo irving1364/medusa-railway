@@ -231,6 +231,15 @@ export default function WebProductForm({ value, onChange, categories, materials,
             <FeaturesEditor value={value.features} onChange={(features) => onChange({ ...value, features })} />
           </div>
 
+          <div className="grid gap-4 border-t border-ui-border-base pt-5 md:grid-cols-2">
+            <Field label="Uso recomendado" hint="Se muestra en la web como «Uso recomendado» y en la ficha técnica como «Uso previsto». Vacío = no se muestra.">
+              <Textarea rows={3} placeholder="Hospitalización · Observación · Recuperación postoperatoria" value={value.uses} onChange={(e) => onChange({ ...value, uses: e.target.value })} />
+            </Field>
+            <Field label="Opciones disponibles" hint="Accesorios o variantes bajo pedido. Se muestra en la tabla de especificación como «Opciones». Vacío = no se muestra.">
+              <Textarea rows={3} placeholder="Grifería · Ducha manual · Gavetas y gabinete inferior" value={value.options} onChange={(e) => onChange({ ...value, options: e.target.value })} />
+            </Field>
+          </div>
+
           <div className="flex flex-col gap-2 border-t border-ui-border-base pt-5">
             <Label size="small" weight="plus">Vista previa de especificaciones</Label>
             <div className="rounded-lg bg-ui-bg-subtle p-3 text-sm">
@@ -393,12 +402,12 @@ export default function WebProductForm({ value, onChange, categories, materials,
           hints={{
             family: (categories.find((c) => c.id === lineId)?.name || ""),
             reference: [value.subtitle, category?.name].filter(Boolean).join(" · "),
-            uses: String(value.extraMeta.uses || ""),
+            uses: value.uses,
             description: value.description,
             mobility: String(value.extraMeta.wheels || ""),
             finish: String(value.extraMeta.finish || ""),
             characteristics: value.features.join(" · "),
-            configurations: String(value.extraMeta.options || ""),
+            configurations: value.options,
             warranty: String(value.extraMeta.warranty || ""),
           }}
           manualUrl={value.datasheetUrl}
