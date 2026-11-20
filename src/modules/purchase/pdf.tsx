@@ -57,6 +57,8 @@ const num = (n: number) => { const v = Math.round((Number(n) || 0) * 100) / 100;
 const money = (n: number) => `${num(n)} B/.`
 const pct = (n: number) => String(Math.round((Number(n) || 0) * 100) / 100)
 const date = (d: string | Date | null | undefined) => { if (!d) return "—"; const t = new Date(new Date(d).getTime() - 5 * 3600000); return `${String(t.getUTCDate()).padStart(2, "0")}/${String(t.getUTCMonth() + 1).padStart(2, "0")}/${t.getUTCFullYear()}` }
+/** "Unidades" / "Unidad" print as "Ud."; any other unit is printed as typed. */
+const unitShort = (u: string | null | undefined) => (/^unidad(es)?$/i.test(String(u || "").trim()) ? "Ud." : String(u || ""))
 const lines = (t: string | null | undefined) => (t || "").split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
 
 /** The purchase order document, laid out like the Odoo template the client uses (P00016). */
@@ -126,10 +128,10 @@ const build = (lib: PdfLib, accent: string) => {
               <View key={l.id || i}>
                 <View style={s.row} wrap={false}>
                   <View style={[s.td, s.cDesc]}><Text>{l.ref ? `[${l.ref}] ` : ""}{l.title}</Text></View>
-                  <View style={[s.td, s.cQty]}><Text>{num(l.quantity)}</Text>{l.unit && l.unit !== "Unidades" ? <Text style={{ color: MUTED, fontSize: 8 }}>{l.unit}</Text> : null}</View>
+                  <View style={[s.td, s.cQty]}><Text>{num(l.quantity)}</Text>{l.unit ? <Text style={{ color: MUTED, fontSize: 8 }}>{unitShort(l.unit)}</Text> : null}</View>
                   <View style={[s.td, s.cPrice]}><Text>{num(l.unit_price)}</Text></View>
                   <View style={[s.td, s.cDisc]}><Text>{pct(l.discount_pct)}%</Text></View>
-                  <View style={[s.td, s.cTax]}><Text>{l.tax_rate ? `ITBMS ${pct(l.tax_rate)}%` : "Exento"}</Text><Text style={{ color: MUTED, fontSize: 8 }}>Compra</Text></View>
+                  <View style={[s.td, s.cTax]}><Text>{l.tax_rate ? `ITBMS ${pct(l.tax_rate)}%` : "Exento"}</Text></View>
                   <View style={[s.td, s.cAmt]}><Text>{money(lineAmount(l))}</Text></View>
                 </View>
                 {l.description ? <View style={s.descRow}>{lines(l.description).map((t, k) => <Text key={k} style={s.desc}>{t}</Text>)}</View> : null}
