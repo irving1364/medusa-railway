@@ -43,7 +43,7 @@ export default defineMiddlewares({
     // Correo (IMAP/SMTP). Sending carries attachments as base64, hence the larger body limit.
     { matcher: "/admin/mail/accounts", method: "POST", middlewares: [validateAndTransformBody(CreateMailAccountSchema)] },
     { matcher: "/admin/mail/accounts/:id", method: "POST", middlewares: [validateAndTransformBody(UpdateMailAccountSchema)] },
-    { matcher: "/admin/mail/test", method: "POST", middlewares: [validateAndTransformBody(TestMailAccountSchema)] },
+    { matcher: "/admin/mail/verify", method: "POST", middlewares: [validateAndTransformBody(TestMailAccountSchema)] },
     { matcher: "/admin/mail/accounts/:id/send", method: "POST", bodyParser: { sizeLimit: "35mb" }, middlewares: [validateAndTransformBody(OutgoingSchema)] },
     { matcher: "/admin/mail/accounts/:id/drafts", method: "POST", bodyParser: { sizeLimit: "35mb" }, middlewares: [validateAndTransformBody(OutgoingSchema)] },
     { matcher: "/admin/mail/accounts/:id/messages/:uid/flags", method: "POST", middlewares: [validateAndTransformBody(FlagsSchema)] },

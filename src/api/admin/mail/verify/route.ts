@@ -4,7 +4,7 @@ import { testSettings } from "../../../../modules/mail/client"
 import { decryptSecret } from "../../../../modules/mail/service"
 import { mailService, type Loose } from "../helpers"
 
-/** POST /admin/mail/test — tries IMAP and SMTP with the form values (stored password when the field is empty). */
+/** POST /admin/mail/verify — tries IMAP and SMTP with the form values (stored password when the field is empty). */
 export async function POST(req: AuthenticatedMedusaRequest<Loose>, res: MedusaResponse) {
   const b = req.validatedBody
   let password = b.password || ""

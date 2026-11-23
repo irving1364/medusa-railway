@@ -94,7 +94,7 @@ export const listAccounts = (company?: CompanyCode) => api<{ accounts: MailAccou
 export const createAccount = (body: Partial<MailAccountInput>) => api<{ account: MailAccount }>("/admin/mail/accounts", { method: "POST", body })
 export const updateAccount = (id: string, body: Partial<MailAccountInput>) => api<{ account: MailAccount }>(A(id), { method: "POST", body })
 export const deleteAccount = (id: string) => api<{ deleted: boolean }>(A(id), { method: "DELETE" })
-export const testAccount = (body: Partial<MailAccountInput> & { account_id?: string | null }) => api<{ ok: boolean; imap: string | null; smtp: string | null; folders: number }>("/admin/mail/test", { method: "POST", body })
+export const testAccount = (body: Partial<MailAccountInput> & { account_id?: string | null }) => api<{ ok: boolean; imap: string | null; smtp: string | null; folders: number }>("/admin/mail/verify", { method: "POST", body })
 
 export const listFolders = (id: string) => api<{ folders: Folder[] }>(`${A(id)}/folders`)
 export const listMessages = (id: string, folder: string, page = 0, q = "") => api<MessageList>(`${A(id)}/messages${qs({ folder, page, q })}`)
