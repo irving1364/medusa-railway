@@ -47,6 +47,7 @@ const EditCustomerPage = () => {
         <div className="flex flex-wrap gap-2">
           <Button size="small" variant="secondary" asChild><a href={`/app/customers/${customer.id}`}>Ficha estándar (pedidos)</a></Button>
           <Button size="small" variant="danger" onClick={() => setConfirmDelete(true)}>Eliminar</Button>
+          {customer?.email ? <Button size="small" variant="secondary" onClick={() => navigate(`/correo?q=${encodeURIComponent(customer.email)}`)}>Ver correos</Button> : null}
           <Button size="small" variant="secondary" onClick={() => navigate("/clientes")}>Volver</Button>
           <Button size="small" isLoading={busy} onClick={save} disabled={!dirty}>Guardar cliente</Button>
         </div>

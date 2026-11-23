@@ -7,6 +7,7 @@ import { UpdateCompanySchema } from "./admin/companies/validators"
 import { z } from "zod"
 
 const QuoteResponseSchema = z.object({ action: z.enum(["accept", "changes", "reject"]), name: z.string().trim().min(2).max(120), comment: z.string().max(2000).nullable().optional() })
+import { CreateMailAccountSchema, UpdateMailAccountSchema, TestMailAccountSchema, OutgoingSchema, FlagsSchema, MoveSchema } from "./admin/mail/validators"
 import { SupplierSchema, UpdateSupplierSchema, ItemSchema, UpdateItemSchema, CreatePurchaseOrderSchema, UpdatePurchaseOrderSchema, PurchaseStatusSchema, SendPurchaseSchema, ReceiptSchema, PaymentSchema, PurchaseProfileSchema } from "./admin/purchases/validators"
 
 // Files stay in memory (same approach as the core /admin/uploads route) and are handed to the file module as base64.
@@ -39,5 +40,13 @@ export default defineMiddlewares({
     { matcher: "/admin/purchase-orders/:id/receipts", method: "POST", middlewares: [validateAndTransformBody(ReceiptSchema)] },
     { matcher: "/admin/purchase-orders/:id/payments", method: "POST", middlewares: [validateAndTransformBody(PaymentSchema)] },
     { matcher: "/admin/purchase-profiles/:company", method: "POST", middlewares: [validateAndTransformBody(PurchaseProfileSchema)] },
+    // Correo (IMAP/SMTP). Sending carries attachments as base64, hence the larger body limit.
+    { matcher: "/admin/mail/accounts", method: "POST", middlewares: [validateAndTransformBody(CreateMailAccountSchema)] },
+    { matcher: "/admin/mail/accounts/:id", method: "POST", middlewares: [validateAndTransformBody(UpdateMailAccountSchema)] },
+    { matcher: "/admin/mail/test", method: "POST", middlewares: [validateAndTransformBody(TestMailAccountSchema)] },
+    { matcher: "/admin/mail/accounts/:id/send", method: "POST", bodyParser: { sizeLimit: "35mb" }, middlewares: [validateAndTransformBody(OutgoingSchema)] },
+    { matcher: "/admin/mail/accounts/:id/drafts", method: "POST", bodyParser: { sizeLimit: "35mb" }, middlewares: [validateAndTransformBody(OutgoingSchema)] },
+    { matcher: "/admin/mail/accounts/:id/messages/:uid/flags", method: "POST", middlewares: [validateAndTransformBody(FlagsSchema)] },
+    { matcher: "/admin/mail/accounts/:id/messages/:uid/move", method: "POST", middlewares: [validateAndTransformBody(MoveSchema)] },
   ],
 })

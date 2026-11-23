@@ -41,6 +41,8 @@ module.exports = defineConfig({
     { resolve: "./src/modules/quote" },
     { resolve: "./src/modules/company" },
     { resolve: "./src/modules/purchase" },
+    // Correo: company mailboxes over IMAP/SMTP (messages stay on the mail server)
+    { resolve: "./src/modules/mail" },
     {
       // Local file storage. Files land in <cwd>/static (mount a Railway volume there) and are
       // served at <PUBLIC_URL>/static/<name>. Used for product datasheet PDFs uploaded from the admin.

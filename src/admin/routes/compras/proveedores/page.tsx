@@ -45,7 +45,7 @@ const SuppliersPage = () => {
               <Table.Cell>{s.ruc ? `${s.ruc}${s.dv ? ` DV ${s.dv}` : ""}` : <span className="text-ui-fg-muted">—</span>}</Table.Cell>
               <Table.Cell><Text size="xsmall" className="line-clamp-2">{s.payment_terms || "—"}</Text></Table.Cell>
               <Table.Cell><Badge size="2xsmall" color={s.active ? "green" : "grey"}>{s.active ? "Activo" : "Inactivo"}</Badge></Table.Cell>
-              <Table.Cell><div className="flex justify-end gap-1"><Button size="small" variant="transparent" onClick={() => startEdit(s)}>Editar</Button><Button size="small" variant="transparent" onClick={() => toggle(s)}>{s.active ? "Inactivar" : "Activar"}</Button><Button size="small" variant="transparent" onClick={() => remove(s)}>Eliminar</Button></div></Table.Cell>
+              <Table.Cell><div className="flex justify-end gap-1">{s.email ? <Button size="small" variant="transparent" onClick={() => navigate(`/correo?q=${encodeURIComponent(s.email || "")}`)}>Correos</Button> : null}<Button size="small" variant="transparent" onClick={() => startEdit(s)}>Editar</Button><Button size="small" variant="transparent" onClick={() => toggle(s)}>{s.active ? "Inactivar" : "Activar"}</Button><Button size="small" variant="transparent" onClick={() => remove(s)}>Eliminar</Button></div></Table.Cell>
             </Table.Row>
           ))}
         </Table.Body>
