@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto"
 import { ImapFlow, type FetchMessageObject, type MessageStructureObject } from "imapflow"
 import { simpleParser, type AddressObject } from "mailparser"
 import nodemailer from "nodemailer"
+import { Resend } from "resend"
 import sanitizeHtml from "sanitize-html"
 import { decryptSecret } from "./service"
 
@@ -19,6 +20,7 @@ export interface MailSettings {
   smtp_host: string
   smtp_port: number
   smtp_secure: boolean
+  send_method?: "smtp" | "resend"
   username: string
   password: string
   signature?: string | null
@@ -47,7 +49,7 @@ export class MailError extends Error {}
 
 export const settingsOf = (a: Loose): MailSettings => ({
   id: a.id, stamp: [a.imap_host, a.imap_port, a.imap_secure, a.username, a.password_enc].join("|"), email: a.email, display_name: a.display_name, imap_host: a.imap_host, imap_port: Number(a.imap_port) || 993, imap_secure: a.imap_secure !== false,
-  smtp_host: a.smtp_host, smtp_port: Number(a.smtp_port) || 465, smtp_secure: a.smtp_secure !== false, username: a.username || a.email, password: decryptSecret(a.password_enc), signature: a.signature,
+  smtp_host: a.smtp_host, smtp_port: Number(a.smtp_port) || 465, smtp_secure: a.smtp_secure !== false, send_method: a.send_method === "smtp" ? "smtp" : "resend", username: a.username || a.email, password: decryptSecret(a.password_enc), signature: a.signature,
 })
 
 /** Human message for the usual connection failures (shown as is in the admin). */
@@ -387,10 +389,16 @@ async function attachmentsFor(s: MailSettings, msg: Outgoing) {
 }
 
 /** RFC 822 source of the message; with Bcc for the copy kept in Sent/Drafts, without it for the wire. */
-async function compose(s: MailSettings, msg: Outgoing, keepBcc: boolean, ids: { messageId: string; date: Date }, files: { filename: string; content: Buffer; contentType?: string }[]) {
+/** Text and HTML versions of the body, with the account signature. */
+const bodies = (s: MailSettings, msg: Outgoing) => {
   const signature = (s.signature || "").trim()
   const text = signature ? `${msg.body}\n\n-- \n${signature}` : msg.body
   const html = `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.5;color:#1f2328">${textToHtml(msg.body)}${signature ? `<br><br><div style="color:#57606a">${textToHtml(signature)}</div>` : ""}</div>`
+  return { text, html }
+}
+
+async function compose(s: MailSettings, msg: Outgoing, keepBcc: boolean, ids: { messageId: string; date: Date }, files: { filename: string; content: Buffer; contentType?: string }[]) {
+  const { text, html } = bodies(s, msg)
   const transport = nodemailer.createTransport({ streamTransport: true, buffer: true, newline: "windows" })
   const info = await transport.sendMail({
     from: { name: s.display_name || "", address: s.email },
@@ -412,16 +420,41 @@ const smtp = (s: MailSettings) => nodemailer.createTransport({
   tls: { servername: s.smtp_host },
 })
 
+/** Same message through the Resend API (HTTPS), for hosts that block outbound SMTP. The From domain must be verified in Resend. */
+async function sendWithResend(s: MailSettings, msg: Outgoing, files: { filename: string; content: Buffer; contentType?: string }[]) {
+  if (!process.env.RESEND_API_KEY) throw new MailError("Envío por Resend no configurado (falta RESEND_API_KEY)")
+  const { text, html } = bodies(s, msg)
+  const headers: Record<string, string> = {}
+  if (msg.in_reply_to) headers["In-Reply-To"] = msg.in_reply_to
+  if (msg.references?.length) headers["References"] = msg.references.join(" ")
+  const { error } = await new Resend(process.env.RESEND_API_KEY).emails.send({
+    from: s.display_name ? `${s.display_name.replace(/["<>]/g, "")} <${s.email}>` : s.email,
+    to: clean(msg.to), cc: clean(msg.cc).length ? clean(msg.cc) : undefined, bcc: clean(msg.bcc).length ? clean(msg.bcc) : undefined,
+    subject: msg.subject || "(sin asunto)", text, html,
+    headers: Object.keys(headers).length ? headers : undefined,
+    attachments: files.length ? files.map((f) => ({ filename: f.filename, content: f.content })) : undefined,
+  })
+  if (error) {
+    const m = String(error.message || "")
+    if (/domain.*not verified|verify a domain/i.test(m)) throw new MailError(`Resend: el dominio ${s.email.split("@")[1]} no está verificado en Resend; agréguelo allí o use SMTP`)
+    throw new MailError(`Resend: ${m || "no se pudo enviar"}`)
+  }
+}
+
 export async function sendMessage(s: MailSettings, msg: Outgoing, extra: { draft_uid?: number | null; reply_to?: { folder: string; uid: number } | null } = {}) {
   const recipients = [...clean(msg.to), ...clean(msg.cc), ...clean(msg.bcc)]
   if (!recipients.length) throw new MailError("Agregue al menos un destinatario")
   const ids = newIds(s)
   const files = await attachmentsFor(s, msg)
-  const wire = await compose(s, msg, false, ids, files)
-  try {
-    await smtp(s).sendMail({ envelope: { from: s.email, to: recipients }, raw: wire })
-  } catch (e) {
-    throw new MailError(friendlyError(e, "SMTP"))
+  if (s.send_method === "resend") {
+    await sendWithResend(s, msg, files)
+  } else {
+    const wire = await compose(s, msg, false, ids, files)
+    try {
+      await smtp(s).sendMail({ envelope: { from: s.email, to: recipients }, raw: wire })
+    } catch (e) {
+      throw new MailError(friendlyError(e, "SMTP"))
+    }
   }
   // Bookkeeping on the IMAP side; the message is already gone, so failures here are only reported.
   const warnings: string[] = []
@@ -465,7 +498,11 @@ export async function testSettings(s: MailSettings) {
   } finally {
     await client.logout().catch(() => client.close())
   }
-  try { await smtp(s).verify() } catch (e) { result.smtp = friendlyError(e, "SMTP") }
+  if (s.send_method === "resend") {
+    if (!process.env.RESEND_API_KEY) result.smtp = "Resend: falta RESEND_API_KEY en el servidor"
+  } else {
+    try { await smtp(s).verify() } catch (e) { result.smtp = friendlyError(e, "SMTP") }
+  }
   return result
 }
 

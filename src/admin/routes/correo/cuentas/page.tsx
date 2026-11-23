@@ -131,19 +131,27 @@ const MailAccountsPage = () => {
                   </div>
                 </div>
                 <div className="flex flex-col gap-3 rounded-lg border border-ui-border-base p-4">
-                  <Text size="small" weight="plus">Saliente (SMTP)</Text>
+                  <Text size="small" weight="plus">Saliente</Text>
+                  <Field label="Enviar por" hint={value.send_method === "resend" ? "Recomendado en Railway: su plan actual bloquea el SMTP saliente. El dominio del correo debe estar verificado en Resend. La copia se guarda igual en Enviados." : "Usa el servidor del hosting. En Railway requiere el plan Pro."}>
+                    <Select value={value.send_method} onValueChange={(v) => set("send_method", v as MailAccountInput["send_method"])}>
+                      <Select.Trigger><Select.Value /></Select.Trigger>
+                      <Select.Content><Select.Item value="resend">Resend (API)</Select.Item><Select.Item value="smtp">SMTP del hosting</Select.Item></Select.Content>
+                    </Select>
+                  </Field>
+                  {value.send_method === "smtp" && (<>
                   <Field label="Servidor"><Input size="small" value={value.smtp_host} onChange={(e) => set("smtp_host", e.target.value.trim())} placeholder="mail.karvenmedical.com" /></Field>
                   <div className="grid grid-cols-2 gap-3">
                     <Field label="Puerto"><Input size="small" type="number" value={String(value.smtp_port)} onChange={(e) => set("smtp_port", Number(e.target.value) || 0)} /></Field>
                     <Field label="SSL/TLS"><div className="flex h-8 items-center"><Switch checked={value.smtp_secure} onCheckedChange={(v) => { set("smtp_secure", v); if (value.smtp_port === 465 || value.smtp_port === 587) set("smtp_port", v ? 465 : 587) }} /></div></Field>
                   </div>
+                  </>)}
                 </div>
               </div>
 
               {test && (
                 <div className={`flex flex-col gap-1 rounded-lg p-3 ${test.ok ? "bg-ui-tag-green-bg" : "bg-ui-tag-red-bg"}`}>
                   <span className="flex items-center gap-2 text-sm">{test.imap ? <XCircleSolid className="text-ui-tag-red-icon" /> : <CheckCircleSolid className="text-ui-tag-green-icon" />} {test.imap || `Entrante correcto (${test.folders} carpetas)`}</span>
-                  <span className="flex items-center gap-2 text-sm">{test.smtp ? <XCircleSolid className="text-ui-tag-red-icon" /> : <CheckCircleSolid className="text-ui-tag-green-icon" />} {test.smtp || "Saliente correcto"}</span>
+                  <span className="flex items-center gap-2 text-sm">{test.smtp ? <XCircleSolid className="text-ui-tag-red-icon" /> : <CheckCircleSolid className="text-ui-tag-green-icon" />} {test.smtp || (value.send_method === "resend" ? "Saliente por Resend listo" : "Saliente correcto")}</span>
                 </div>
               )}
 

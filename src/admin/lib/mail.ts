@@ -13,6 +13,7 @@ export interface MailAccount {
   smtp_host: string
   smtp_port: number
   smtp_secure: boolean
+  send_method: "smtp" | "resend"
   username: string
   signature: string | null
   active: boolean
@@ -33,6 +34,7 @@ export interface MailAccountInput {
   smtp_host: string
   smtp_port: number
   smtp_secure: boolean
+  send_method: "smtp" | "resend"
   username: string
   password: string
   signature: string
@@ -204,12 +206,12 @@ export const fileToBase64 = (file: File) => new Promise<string>((resolve, reject
 
 export const DEFAULT_ACCOUNT = (company: CompanyCode): MailAccountInput => ({
   company, label: "", email: "", display_name: company === "fabmetal" ? "FABMETAL" : "KARVEN Medical",
-  imap_host: "", imap_port: 993, imap_secure: true, smtp_host: "", smtp_port: 465, smtp_secure: true,
+  imap_host: "", imap_port: 993, imap_secure: true, smtp_host: "", smtp_port: 465, smtp_secure: true, send_method: "resend",
   username: "", password: "", signature: "", active: true,
 })
 
 export const accountToInput = (a: MailAccount): MailAccountInput => ({
   company: a.company, label: a.label, email: a.email, display_name: a.display_name || "",
-  imap_host: a.imap_host, imap_port: a.imap_port, imap_secure: a.imap_secure, smtp_host: a.smtp_host, smtp_port: a.smtp_port, smtp_secure: a.smtp_secure,
+  imap_host: a.imap_host, imap_port: a.imap_port, imap_secure: a.imap_secure, smtp_host: a.smtp_host, smtp_port: a.smtp_port, smtp_secure: a.smtp_secure, send_method: a.send_method === "smtp" ? "smtp" : "resend",
   username: a.username === a.email ? "" : a.username, password: "", signature: a.signature || "", active: a.active,
 })

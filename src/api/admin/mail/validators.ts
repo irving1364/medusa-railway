@@ -15,6 +15,7 @@ const AccountBase = z.object({
   smtp_host: host,
   smtp_port: port,
   smtp_secure: z.boolean(),
+  send_method: z.enum(["smtp", "resend"]).optional(),
   username: z.string().trim().max(254).nullable().optional(),
   password: z.string().max(500).optional(),
   signature: z.string().max(4000).nullable().optional(),

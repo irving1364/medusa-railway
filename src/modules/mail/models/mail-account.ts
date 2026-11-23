@@ -16,6 +16,8 @@ const MailAccount = model.define("mail_account", {
   smtp_host: model.text(),
   smtp_port: model.number().default(465),
   smtp_secure: model.boolean().default(true),
+  /** "resend": send through the Resend API (Railway below Pro blocks outbound SMTP); the copy still goes to Enviados over IMAP */
+  send_method: model.enum(["smtp", "resend"]).default("resend"),
   username: model.text(),
   /** AES-256-GCM, key from MAIL_SECRET (never returned by the API) */
   password_enc: model.text(),

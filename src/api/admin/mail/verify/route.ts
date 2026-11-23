@@ -16,7 +16,7 @@ export async function POST(req: AuthenticatedMedusaRequest<Loose>, res: MedusaRe
   const result = await testSettings({
     email: b.email, display_name: b.display_name || null, username: b.username || b.email, password,
     imap_host: b.imap_host, imap_port: b.imap_port, imap_secure: b.imap_secure,
-    smtp_host: b.smtp_host, smtp_port: b.smtp_port, smtp_secure: b.smtp_secure,
+    smtp_host: b.smtp_host, smtp_port: b.smtp_port, smtp_secure: b.smtp_secure, send_method: b.send_method === "smtp" ? "smtp" : "resend",
   })
   res.json({ ok: !result.imap && !result.smtp, ...result })
 }
