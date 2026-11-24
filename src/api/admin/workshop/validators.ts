@@ -82,3 +82,17 @@ export const ConsumeSchema = z.object({
   quantity: z.number().min(-1000000).max(1000000).refine((n) => n !== 0, "Indique una cantidad"),
   note: text(500),
 })
+
+const photoKind = z.enum(["progress", "inspection", "delivery", "issue"])
+/** Photos already uploaded through /admin/web-uploads, attached to the order. */
+export const AddPhotosSchema = z.object({
+  photos: z.array(z.object({
+    url: z.string().url().max(2000),
+    file_id: z.string().max(200).nullable().optional(),
+    kind: photoKind,
+    caption: text(300),
+    width: z.number().int().positive().nullable().optional(),
+    height: z.number().int().positive().nullable().optional(),
+  })).min(1).max(20),
+})
+export const UpdatePhotoSchema = z.object({ kind: photoKind.optional(), caption: text(300) })

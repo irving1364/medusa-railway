@@ -40,6 +40,7 @@ export async function POST(req: AuthenticatedMedusaRequest<Loose>, res: MedusaRe
   const type = body.type as WorkType
   const row: Loose = { ...clean(body, ORDER_FIELDS), number: await service.nextNumber(type), stage: "preparation" }
   row.checklist = Array.isArray(body.checklist) && body.checklist.length ? body.checklist : checklistFor(type)
+  if (row.due_date) row.original_due_date = row.due_date
   if (body.blocked) { row.blocked = true; row.blocker = body.blocker || null; row.blocked_since = new Date() }
   const order = await service.createWorkOrders(row)
   const acts = (body.activities || []) as Loose[]

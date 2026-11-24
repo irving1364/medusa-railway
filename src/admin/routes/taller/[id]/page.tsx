@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react
 import { Link, useNavigate, useParams } from "react-router-dom"
 import ActivityDrawer from "../../../components/activity-drawer"
 import WorkMaterials from "../../../components/work-materials"
+import WorkPhotos, { PhotoUpload } from "../../../components/work-photos"
 import WorkOrderForm, { ResourceSelect } from "../../../components/work-order-form"
 import { companyColor, companyLabel } from "../../../lib/companies"
 import {
@@ -101,6 +102,8 @@ const WorkOrderPage = () => {
   const checksDirty = JSON.stringify(checks) !== JSON.stringify(order.checklist)
   const canRelease = !order.blocked && checks.length > 0 && checksDone === checks.length && !checksDirty
   const stageIndex = STAGES.indexOf(order.stage)
+  const inspectionPhotos = (order.photos || []).filter((p) => p.kind === "inspection").length
+  const deliveryPhotos = (order.photos || []).filter((p) => p.kind === "delivery").length
 
   return (
     <div className="flex flex-col gap-3">
@@ -190,6 +193,8 @@ const WorkOrderPage = () => {
           </Container>
 
           <WorkMaterials order={order} onChange={setOrder} />
+
+          <WorkPhotos order={order} onChange={setOrder} />
         </div>
 
         <div className="flex flex-col gap-3">
@@ -219,6 +224,10 @@ const WorkOrderPage = () => {
               </div>
             )}
             {checksDirty && <Button size="small" variant="secondary" onClick={() => run(() => updateOrder(id, { checklist: checks }), "Inspección guardada")} isLoading={busy}>Guardar inspección</Button>}
+            <div className="flex items-center justify-between gap-2 rounded-md bg-ui-bg-subtle px-3 py-2">
+              <Text size="xsmall" className={inspectionPhotos || released ? "text-ui-fg-subtle" : "text-ui-tag-orange-text"}>{inspectionPhotos ? `${inspectionPhotos} foto${inspectionPhotos === 1 ? "" : "s"} de inspección` : released ? "Sin fotos de inspección" : "Sin fotos de inspección (recomendado antes de liberar)"}</Text>
+              {!released && <PhotoUpload order={order} kind="inspection" onChange={setOrder} label="Foto" />}
+            </div>
             {released ? (
               <Text size="small" className="text-ui-tag-green-text">Liberada el {fmtDateTime(order.released_at)}{order.inspected_by ? ` por ${order.inspected_by}` : ""}.</Text>
             ) : (
@@ -242,7 +251,12 @@ const WorkOrderPage = () => {
               ) : (
                 <>
                   <Textarea rows={2} placeholder="Recibido por, lugar, número de guía o acta…" value={deliveryNote} onChange={(e) => setDeliveryNote(e.target.value)} />
-                  <Button size="small" onClick={() => changeStage("delivered")} isLoading={busy}>Registrar entrega</Button>
+                  <div className="flex items-center justify-between gap-2 rounded-md bg-ui-bg-subtle px-3 py-2">
+                    <Text size="xsmall" className="text-ui-fg-subtle">{deliveryPhotos ? `${deliveryPhotos} foto${deliveryPhotos === 1 ? "" : "s"} de entrega` : "Sin fotos de entrega"}</Text>
+                    <PhotoUpload order={order} kind="delivery" onChange={setOrder} label="Foto" />
+                  </div>
+                  <Button size="small" onClick={() => changeStage("delivered")} isLoading={busy} disabled={!deliveryNote.trim() && !deliveryPhotos}>Registrar entrega</Button>
+                  <Text size="xsmall" className="text-ui-fg-subtle">Se registra con quién la recibió o con una foto de la entrega.</Text>
                 </>
               )}
             </Container>

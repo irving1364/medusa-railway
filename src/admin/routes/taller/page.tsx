@@ -351,6 +351,7 @@ const WorkshopPage = () => {
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <CompanySwitcher compact />
+            <Button size="small" variant="secondary" onClick={() => navigate("/taller/reportes")}>Reportes</Button>
             <Button size="small" variant="secondary" onClick={() => navigate("/taller/recursos")}>Recursos</Button>
             <Button size="small" onClick={startNew}>Nueva orden</Button>
           </div>

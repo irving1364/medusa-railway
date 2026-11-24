@@ -12,7 +12,7 @@ export const workshopService = (req: { scope: any }) => req.scope.resolve(WORKSH
 const num = (v: unknown, fallback = 0) => { const n = Number(v); return Number.isFinite(n) ? n : fallback }
 
 export const serializeActivity = (a: Loose) => ({ ...a, hours: num(a.hours, 0), actual_hours: a.actual_hours === null || a.actual_hours === undefined ? null : num(a.actual_hours) })
-export const serializeResource = (r: Loose) => ({ ...r, weekly_capacity: num(r.weekly_capacity, 40), daily_capacity: num(r.daily_capacity, 9) })
+export const serializeResource = (r: Loose): Loose => ({ ...r, weekly_capacity: num(r.weekly_capacity, 40), daily_capacity: num(r.daily_capacity, 9) })
 export const serializeOrder = (o: Loose) => ({ ...o, quantity: num(o.quantity, 1), checklist: Array.isArray(o.checklist) ? o.checklist : [] })
 
 /** Material line with the stock of its catalogue item: what is still needed and what has to be bought. */
@@ -38,10 +38,11 @@ export async function loadMaterials(req: { scope: any }, orderIds: string[]) {
 export async function loadOrder(req: { scope: any }, id: string) {
   const service = workshopService(req)
   const order = await service.retrieveWorkOrder(id)
-  const [activities, events, material_lines] = await Promise.all([
+  const [activities, events, material_lines, photos] = await Promise.all([
     service.listWorkActivities({ order_id: id }, { order: { sort_order: "ASC", created_at: "ASC" } }),
     service.listWorkEvents({ order_id: id }, { order: { created_at: "DESC" }, take: 100 }),
     loadMaterials(req, [id]),
+    service.listWorkImages({ order_id: id }, { order: { created_at: "ASC" } }),
   ])
   // Purchase orders made for this job, with their current status.
   const linked = (((order.metadata || {}) as Loose).purchase_orders || []) as Loose[]
@@ -50,7 +51,7 @@ export async function loadOrder(req: { scope: any }, id: string) {
     const found = await purchaseService(req).listPurchaseOrders({ id: linked.map((p) => p.id) }, { select: ["id", "number", "status", "supplier_name", "expected_date", "total"] })
     purchase_orders = found.map((p) => ({ ...p, total: num(p.total) }))
   }
-  return { ...serializeOrder(order), activities: activities.map(serializeActivity), material_lines, purchase_orders, events }
+  return { ...serializeOrder(order), activities: activities.map(serializeActivity), material_lines, purchase_orders, photos, events }
 }
 
 const MAT_LABEL: Loose = { pending: "Pendientes", partial: "Parciales", complete: "Completos" }

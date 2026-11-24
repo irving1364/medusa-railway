@@ -23,6 +23,8 @@ const WorkOrder = model.define("work_order", {
   quote_number: model.text().nullable(),
   quantity: model.number().default(1),
   due_date: model.text().nullable(),
+  /** First committed delivery date: the reports measure on-time delivery against it even if due_date is moved later. */
+  original_due_date: model.text().nullable(),
   finish_date: model.text().nullable(),
   priority: model.enum(WO_PRIORITIES).default("normal"),
   stage: model.enum(WO_STAGES).default("preparation"),

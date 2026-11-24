@@ -27,9 +27,9 @@ export async function POST(req: AuthenticatedMedusaRequest, res: MedusaResponse)
 
   const raw = req.query.raw === "1" || req.query.raw === "true"
   const prepared: { filename: string; mimeType: string; content: string; access: "public"; meta: Record<string, unknown> }[] = []
-  for (const raw of input) {
+  for (const file of input) {
     // multer decodes file names as latin1; restore UTF-8 so accents survive ("móvil", not "mÃ³vil")
-    const f = { ...raw, originalname: Buffer.from(raw.originalname, "latin1").toString("utf8") }
+    const f = { ...file, originalname: Buffer.from(file.originalname, "latin1").toString("utf8") }
     const isImage = IMAGE_TYPES.has(f.mimetype)
     if (f.size > (isImage ? MAX_IMAGE_BYTES : MAX_FILE_BYTES)) {
       throw new MedusaError(MedusaError.Types.INVALID_DATA, `${f.originalname} supera el tamaño permitido (${isImage ? "15" : "25"} MB)`)

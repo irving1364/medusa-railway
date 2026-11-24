@@ -12,6 +12,9 @@ export interface Resource { id: string; name: string; role: string | null; weekl
 export interface Activity { id: string; order_id: string; name: string; date: string | null; resource_id: string | null; hours: number; actual_hours: number | null; status: ActivityStatus; sort_order: number; notes: string | null }
 export interface Material { id: string; order_id: string; item_id: string | null; item_ref: string | null; name: string; unit: string; required: number; consumed: number; remaining: number; stock: number | null; min_stock: number | null; last_price: number | null; shortfall: number; note: string | null }
 export interface LinkedPurchase { id: string; number: string; status: string; supplier_name: string; expected_date: string | null; total: number }
+export type PhotoKind = "progress" | "inspection" | "delivery" | "issue"
+export interface Photo { id: string; order_id: string; kind: PhotoKind; url: string; file_id: string | null; caption: string | null; width: number | null; height: number | null; actor_email: string | null; created_at: string }
+export const PHOTO_KIND_LABEL: Record<PhotoKind, string> = { progress: "Avance", inspection: "Inspección", delivery: "Entrega", issue: "Incidencia" }
 export interface WorkEvent { id: string; action: string; note: string | null; actor_email: string | null; created_at: string }
 export interface WorkOrder {
   id: string
@@ -49,6 +52,8 @@ export interface WorkOrder {
   activities?: Activity[]
   material_lines?: Material[]
   purchase_orders?: LinkedPurchase[]
+  photos?: Photo[]
+  original_due_date?: string | null
   events?: WorkEvent[]
   metadata?: Record<string, unknown> | null
 }
@@ -133,6 +138,9 @@ export const updateMaterial = (id: string, body: { required?: number; note?: str
 export const deleteMaterial = (id: string) => api<{ order: WorkOrder }>(`${W}/materials/${id}`, { method: "DELETE" })
 /** quantity > 0 consumes from stock, < 0 returns it. */
 export const consumeMaterial = (id: string, quantity: number, note?: string) => api<{ order: WorkOrder; warnings: string[] }>(`${W}/materials/${id}/consume`, { method: "POST", body: { quantity, note: note || null } })
+export const addPhotos = (orderId: string, photos: { url: string; file_id?: string | null; kind: PhotoKind; caption?: string | null; width?: number | null; height?: number | null }[]) => api<{ order: WorkOrder }>(`${W}/orders/${orderId}/photos`, { method: "POST", body: { photos } })
+export const updatePhoto = (id: string, body: { kind?: PhotoKind; caption?: string | null }) => api<{ order: WorkOrder }>(`${W}/photos/${id}`, { method: "POST", body })
+export const deletePhoto = (id: string) => api<{ order: WorkOrder }>(`${W}/photos/${id}`, { method: "DELETE" })
 export const listResources = (active = false) => api<{ resources: Resource[] }>(`${W}/resources${qs({ active: active ? 1 : undefined })}`)
 export const createResource = (body: Partial<Resource>) => api<{ resource: Resource }>(`${W}/resources`, { method: "POST", body })
 export const updateResource = (id: string, body: Partial<Resource>) => api<{ resource: Resource }>(`${W}/resources/${id}`, { method: "POST", body })
@@ -181,3 +189,37 @@ export const orderToInput = (o: WorkOrder): OrderInput => ({
   quantity: o.quantity, due_date: o.due_date || "", finish_date: o.finish_date || "", priority: o.priority, materials: o.materials,
   materials_note: o.materials_note || "", owner_id: o.owner_id || "", next_action: o.next_action || "", notes: o.notes || "",
 })
+
+/* ─── Reports ─── */
+
+export interface OrderRef { id: string; number: string; title: string; client_name: string | null; type: WorkType }
+export interface DeliveredRow extends OrderRef { delivered: string; due: string | null; late_days: number | null; lead_days: number; moved: boolean }
+export interface Reports {
+  from: string; to: string; company: string | null
+  summary: {
+    delivered: number; on_time: number; with_due: number; on_time_pct: number | null; avg_late_days: number | null; avg_lead_days: number | null
+    created: number; created_by_type: Record<WorkType, number>; delivered_by_type: Record<WorkType, number>; cancelled: number; open_now: number; overdue_now: number
+    hours_planned: number; hours_done: number; hours_measured_planned: number; hours_measured_actual: number; hours_deviation_pct: number | null; measured_activities: number
+    rework: number; blockers_new: number; blockers_now: number; avg_block_days: number | null; materials_cost: number; materials_unpriced: number
+  }
+  weeks: { week: string; on_time: number; late: number; no_date: number }[]
+  late: DeliveredRow[]
+  delivered: DeliveredRow[]
+  operations: { name: string; count: number; planned: number; measured: number; planned_measured: number; actual: number; deviation_pct: number | null }[]
+  people: { id: string; name: string; role: string | null; planned: number; done: number; actual: number; capacity: number; utilization: number | null }[]
+  unassigned_hours: number
+  rework: (OrderRef & { from: WorkStage; to: WorkStage; date: string; actor: string | null })[]
+  blocker_causes: { cause: string; count: number }[]
+  blockers: { order: OrderRef; cause: string; date: string }[]
+  materials: { item_id: string; name: string; ref: string | null; unit: string; quantity: number; orders: number; price: number | null; cost: number | null }[]
+}
+export const getReports = (from: string, to: string, company?: string) => api<Reports>(`${W}/reports${qs({ from, to, company })}`)
+
+/** Downloads rows as a CSV that Excel opens with accents (UTF-8 BOM, semicolons for Spanish locale). */
+export const downloadCsv = (filename: string, header: string[], rows: (string | number | null | undefined)[][]) => {
+  const cell = (v: string | number | null | undefined) => { const s = v === null || v === undefined ? "" : String(v); return /[";\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s }
+  const text = "﻿" + [header, ...rows].map((r) => r.map(cell).join(";")).join("\r\n")
+  const url = URL.createObjectURL(new Blob([text], { type: "text/csv;charset=utf-8" }))
+  const a = document.createElement("a"); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove()
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
+}

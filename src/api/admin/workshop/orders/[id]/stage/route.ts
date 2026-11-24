@@ -1,4 +1,5 @@
 import type { AuthenticatedMedusaRequest, MedusaResponse } from "@medusajs/framework/http"
+import { MedusaError } from "@medusajs/framework/utils"
 import type { WorkStage } from "../../../../../../modules/workshop/service"
 import { actorEmail, loadOrder, logEvent, workshopService, type Loose } from "../../../helpers"
 
@@ -14,6 +15,11 @@ export async function POST(req: AuthenticatedMedusaRequest<Loose>, res: MedusaRe
   const { stage, note } = req.validatedBody as { stage: WorkStage; note?: string | null }
   const order = await service.retrieveWorkOrder(id)
   const patch = service.stageChange(order, stage, await actorEmail(req))
+  // A delivery needs evidence: who received it (note) or a delivery photo.
+  if (stage === "delivered" && order.stage !== "delivered" && !note?.trim() && !order.delivery_note) {
+    const shots = await service.listWorkImages({ order_id: id, kind: "delivery" }, { select: ["id"], take: 1 })
+    if (!shots.length) throw new MedusaError(MedusaError.Types.NOT_ALLOWED, "Registre la evidencia de entrega: quién la recibió (nota) o una foto de la entrega.")
+  }
   if (Object.keys(patch).length) {
     if (stage === "delivered" && note) patch.delivery_note = note
     await service.updateWorkOrders({ id, ...patch })

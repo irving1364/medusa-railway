@@ -16,13 +16,19 @@ export async function POST(req: AuthenticatedMedusaRequest<Loose>, res: MedusaRe
   const id = req.params.id
   const body = req.validatedBody
   const current = await service.retrieveWorkOrder(id)
+  let notesDue: string | null = null
   const patch: Loose = { id, ...clean(body, ORDER_FIELDS) }
   // The number belongs to the type (OP / OT): the type is fixed once created.
   delete patch.type
   // With material lines the materials state is computed from them (see syncMaterials).
   if ("materials" in patch && (await service.listWorkMaterials({ order_id: id }, { select: ["id"], take: 1 })).length) { delete patch.materials; delete patch.materials_note }
 
+  // The first committed date stays as the reference for on-time reports.
+  if (patch.due_date && !current.original_due_date) patch.original_due_date = patch.due_date
+  if (patch.due_date && current.due_date && patch.due_date !== current.due_date) notesDue = `Entrega comprometida: ${current.due_date.split("-").reverse().join("/")} → ${String(patch.due_date).split("-").reverse().join("/")}`
+
   const notes: string[] = []
+  if (notesDue) notes.push(notesDue)
   if ("blocked" in body && body.blocked !== current.blocked) {
     patch.blocked = !!body.blocked
     patch.blocked_since = body.blocked ? new Date() : null
@@ -43,7 +49,7 @@ export async function POST(req: AuthenticatedMedusaRequest<Loose>, res: MedusaRe
   if ("materials" in body && body.materials !== current.materials) notes.push(`Materiales: ${MATERIALS[body.materials]}`)
 
   await service.updateWorkOrders(patch)
-  if (notes.length) await logEvent(req, id, "updated", notes.join(" · "))
+  if (notes.length) await logEvent(req, id, "updated", notes.join(" · "), "blocked" in patch ? { blocked: patch.blocked } : null)
   res.json({ order: await loadOrder(req, id) })
 }
 
@@ -54,6 +60,8 @@ export async function DELETE(req: AuthenticatedMedusaRequest, res: MedusaRespons
   const mats = await service.listWorkMaterials({ order_id: id }, { select: ["id", "consumed"] })
   if (mats.some((m) => (Number(m.consumed) || 0) > 0)) throw new MedusaError(MedusaError.Types.NOT_ALLOWED, "La orden tiene material consumido. Devuélvalo al stock o cancele la orden en lugar de eliminarla.")
   if (mats.length) await service.softDeleteWorkMaterials(mats.map((m) => m.id))
+  const photos = await service.listWorkImages({ order_id: id }, { select: ["id"] })
+  if (photos.length) await service.softDeleteWorkImages(photos.map((p) => p.id))
   const acts = await service.listWorkActivities({ order_id: id }, { select: ["id"] })
   if (acts.length) await service.softDeleteWorkActivities(acts.map((a) => a.id))
   await service.softDeleteWorkOrders([id])

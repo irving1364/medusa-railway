@@ -109,6 +109,8 @@ const build = (lib: PdfLib, accent: string) => {
     const acts = (o.activities || []) as Loose[]
     const mats = (o.material_lines || []) as Loose[]
     const checks = (o.checklist || []) as Loose[]
+    const shots = (k: string) => ((o.photos || []) as Loose[]).filter((p) => p.kind === k).length
+    const shotsNote = (k: string, label: string) => (shots(k) ? <Text style={[s.small, { marginTop: 3 }]}>{shots(k)} foto{shots(k) === 1 ? "" : "s"} de {label} registrada{shots(k) === 1 ? "" : "s"} en el sistema.</Text> : null)
     const person = (id: string | null) => (id && people.get(id)) || ""
     const title = o.type === "fabrication" ? "ORDEN DE PRODUCCIÓN" : "ORDEN DE TRABAJO"
     const C = { n: { width: "5%" }, op: { width: "33%" }, who: { width: "16%" }, date: { width: "12%" }, plan: { width: "9%", textAlign: "right" as const }, real: { width: "10%" }, ok: { width: "15%" } }
@@ -177,6 +179,7 @@ const build = (lib: PdfLib, accent: string) => {
           <View style={s.section} wrap={false}>
             <Text style={s.sectionTitle}>Inspección de calidad</Text>
             {checks.map((c, i) => <View key={i} style={s.checkRow}><Box on={!!c.done} /><Text>{c.label}</Text></View>)}
+            {shotsNote("inspection", "inspección")}
             <View style={s.signs}>
               <View style={s.sign}><Text style={s.label}>Inspeccionado por</Text><Text>{o.inspected_by || ""}</Text></View>
               <View style={s.sign}><Text style={s.label}>Fecha</Text><Text>{o.released_at ? day(new Date(o.released_at).toISOString().slice(0, 10)) : ""}</Text></View>
@@ -187,6 +190,7 @@ const build = (lib: PdfLib, accent: string) => {
           <View style={s.section} wrap={false}>
             <Text style={s.sectionTitle}>Entrega</Text>
             {o.delivery_note ? <Text style={[s.p, { marginBottom: 4 }]}>{o.delivery_note}</Text> : null}
+            {shotsNote("delivery", "entrega")}
             <View style={s.signs}>
               <View style={s.sign}><Text style={s.label}>Recibido por (nombre)</Text></View>
               <View style={s.sign}><Text style={s.label}>Fecha</Text><Text>{o.delivered_at ? day(new Date(o.delivered_at).toISOString().slice(0, 10)) : ""}</Text></View>
