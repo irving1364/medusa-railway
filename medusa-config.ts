@@ -43,6 +43,8 @@ module.exports = defineConfig({
     { resolve: "./src/modules/purchase" },
     // Correo: company mailboxes over IMAP/SMTP (messages stay on the mail server)
     { resolve: "./src/modules/mail" },
+    // Taller: work orders, activities planned per day and person, quality release
+    { resolve: "./src/modules/workshop" },
     {
       // Local file storage. Files land in <cwd>/static (mount a Railway volume there) and are
       // served at <PUBLIC_URL>/static/<name>. Used for product datasheet PDFs uploaded from the admin.

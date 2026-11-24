@@ -8,6 +8,7 @@ import { z } from "zod"
 
 const QuoteResponseSchema = z.object({ action: z.enum(["accept", "changes", "reject"]), name: z.string().trim().min(2).max(120), comment: z.string().max(2000).nullable().optional() })
 import { CreateMailAccountSchema, UpdateMailAccountSchema, TestMailAccountSchema, OutgoingSchema, FlagsSchema, MoveSchema } from "./admin/mail/validators"
+import { CreateWorkOrderSchema, UpdateWorkOrderSchema, WorkStageSchema, CreateActivitySchema, UpdateActivitySchema, ResourceSchema, UpdateResourceSchema } from "./admin/workshop/validators"
 import { SupplierSchema, UpdateSupplierSchema, ItemSchema, UpdateItemSchema, CreatePurchaseOrderSchema, UpdatePurchaseOrderSchema, PurchaseStatusSchema, SendPurchaseSchema, ReceiptSchema, PaymentSchema, PurchaseProfileSchema } from "./admin/purchases/validators"
 
 // Files stay in memory (same approach as the core /admin/uploads route) and are handed to the file module as base64.
@@ -48,5 +49,13 @@ export default defineMiddlewares({
     { matcher: "/admin/mail/accounts/:id/drafts", method: "POST", bodyParser: { sizeLimit: "35mb" }, middlewares: [validateAndTransformBody(OutgoingSchema)] },
     { matcher: "/admin/mail/accounts/:id/messages/:uid/flags", method: "POST", middlewares: [validateAndTransformBody(FlagsSchema)] },
     { matcher: "/admin/mail/accounts/:id/messages/:uid/move", method: "POST", middlewares: [validateAndTransformBody(MoveSchema)] },
+    // Taller
+    { matcher: "/admin/workshop/orders", method: "POST", middlewares: [validateAndTransformBody(CreateWorkOrderSchema)] },
+    { matcher: "/admin/workshop/orders/:id", method: "POST", middlewares: [validateAndTransformBody(UpdateWorkOrderSchema)] },
+    { matcher: "/admin/workshop/orders/:id/stage", method: "POST", middlewares: [validateAndTransformBody(WorkStageSchema)] },
+    { matcher: "/admin/workshop/orders/:id/activities", method: "POST", middlewares: [validateAndTransformBody(CreateActivitySchema)] },
+    { matcher: "/admin/workshop/activities/:id", method: "POST", middlewares: [validateAndTransformBody(UpdateActivitySchema)] },
+    { matcher: "/admin/workshop/resources", method: "POST", middlewares: [validateAndTransformBody(ResourceSchema)] },
+    { matcher: "/admin/workshop/resources/:id", method: "POST", middlewares: [validateAndTransformBody(UpdateResourceSchema)] },
   ],
 })
