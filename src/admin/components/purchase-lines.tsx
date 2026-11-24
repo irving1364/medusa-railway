@@ -25,7 +25,7 @@ export default function PurchaseLines({ lines, taxRate, onChange, disabled, show
   const createAndAdd = async () => {
     const name = q.trim()
     if (!name) return
-    try { const { item } = await createItem({ name, ref: "", description: "", unit: "Unidades", category: "", last_price: "" }); add(lineFromItem(item, taxRate)); toast.success(`"${name}" agregado al catálogo de materiales`) } catch (e) { toast.error(e instanceof Error ? e.message : "No se pudo crear el material") }
+    try { const { item } = await createItem({ name, ref: "", description: "", unit: "Unidades", category: "", last_price: "", min_stock: "" }); add(lineFromItem(item, taxRate)); toast.success(`"${name}" agregado al catálogo de materiales`) } catch (e) { toast.error(e instanceof Error ? e.message : "No se pudo crear el material") }
   }
   const set = (i: number, patch: Partial<PurchaseLine>) => onChange(lines.map((l, k) => (k === i ? { ...l, ...patch } : l)))
   const move = (i: number, dir: -1 | 1) => { const j = i + dir; if (j < 0 || j >= lines.length) return; const next = [...lines]; ;[next[i], next[j]] = [next[j], next[i]]; onChange(next) }

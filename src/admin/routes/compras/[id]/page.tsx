@@ -1,6 +1,6 @@
 import { Badge, Button, Container, Heading, Prompt, Text, toast } from "@medusajs/ui"
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { useNavigate, useParams } from "react-router-dom"
+import { Link, useNavigate, useParams } from "react-router-dom"
 import PurchaseForm from "../../../components/purchase-form"
 import PurchaseSendDialog from "../../../components/purchase-send-dialog"
 import PurchaseStatusCard from "../../../components/purchase-status-card"
@@ -62,6 +62,7 @@ const EditPurchasePage = () => {
             <Badge size="2xsmall" color={companyColor(order.company)}>{companyLabel(order.company)}</Badge>
           </div>
           <Text size="small" className="text-ui-fg-subtle">{dirty ? "Cambios sin guardar" : locked ? "Cerrada: solo se editan notas, fecha de llegada, términos y factura" : order.supplier_name}</Text>
+          {typeof order.metadata?.work_order_id === "string" && <Text size="small">Para la orden de taller <Link className="text-ui-fg-interactive hover:underline" to={`/taller/${order.metadata.work_order_id}`}>{String(order.metadata.work_order_number || "ver orden")}</Link></Text>}
         </div>
         <div className="flex flex-wrap gap-2">
           <Button size="small" variant="secondary" asChild><a href={orderPdfUrl(order.id)} target="_blank" rel="noreferrer">Ver PDF</a></Button>

@@ -19,6 +19,8 @@ export async function POST(req: AuthenticatedMedusaRequest<Loose>, res: MedusaRe
   const patch: Loose = { id, ...clean(body, ORDER_FIELDS) }
   // The number belongs to the type (OP / OT): the type is fixed once created.
   delete patch.type
+  // With material lines the materials state is computed from them (see syncMaterials).
+  if ("materials" in patch && (await service.listWorkMaterials({ order_id: id }, { select: ["id"], take: 1 })).length) { delete patch.materials; delete patch.materials_note }
 
   const notes: string[] = []
   if ("blocked" in body && body.blocked !== current.blocked) {
@@ -49,6 +51,9 @@ export async function POST(req: AuthenticatedMedusaRequest<Loose>, res: MedusaRe
 export async function DELETE(req: AuthenticatedMedusaRequest, res: MedusaResponse) {
   const service = workshopService(req)
   const id = req.params.id
+  const mats = await service.listWorkMaterials({ order_id: id }, { select: ["id", "consumed"] })
+  if (mats.some((m) => (Number(m.consumed) || 0) > 0)) throw new MedusaError(MedusaError.Types.NOT_ALLOWED, "La orden tiene material consumido. Devuélvalo al stock o cancele la orden en lugar de eliminarla.")
+  if (mats.length) await service.softDeleteWorkMaterials(mats.map((m) => m.id))
   const acts = await service.listWorkActivities({ order_id: id }, { select: ["id"] })
   if (acts.length) await service.softDeleteWorkActivities(acts.map((a) => a.id))
   await service.softDeleteWorkOrders([id])

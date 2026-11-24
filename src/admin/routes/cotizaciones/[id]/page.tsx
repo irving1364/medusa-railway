@@ -4,6 +4,7 @@ import { useNavigate, useParams } from "react-router-dom"
 import QuoteForm from "../../../components/quote-form"
 import QuoteSendDialog from "../../../components/quote-send-dialog"
 import QuoteStatusCard from "../../../components/quote-status-card"
+import QuoteWorkshopCard from "../../../components/quote-workshop-card"
 import { STATUS, deleteQuote, duplicateQuote, errorMessage, getQuote, listProfiles, quotePdfUrl, storeLabel, toBody, toInput, updateQuote, type Quote, type QuoteInput, type QuoteProfile, lineProblem } from "../../../lib/quotes"
 
 /** /cotizaciones/:id — edit, preview PDF, send, change status, duplicate, delete. */
@@ -83,7 +84,10 @@ const EditQuotePage = () => {
 
       <div className="grid gap-4 lg:grid-cols-[1fr_22rem]">
         <QuoteForm value={value} onChange={setValue} profile={profile} lockStore disabled={closed} />
-        <QuoteStatusCard quote={quote} dirty={dirty} version={version} onChanged={apply} onSend={() => setSendOpen(true)} />
+        <div className="flex flex-col gap-4">
+          <QuoteStatusCard quote={quote} dirty={dirty} version={version} onChanged={apply} onSend={() => setSendOpen(true)} />
+          <QuoteWorkshopCard quote={quote} />
+        </div>
       </div>
 
       <QuoteSendDialog open={sendOpen} onOpenChange={setSendOpen} quote={quote} profile={profile} onSent={apply} />

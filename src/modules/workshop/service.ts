@@ -1,6 +1,7 @@
 import { MedusaError, MedusaService } from "@medusajs/framework/utils"
 import WorkActivity from "./models/work-activity"
 import WorkEvent from "./models/work-event"
+import WorkMaterial from "./models/work-material"
 import WorkOrder from "./models/work-order"
 import WorkshopResource from "./models/workshop-resource"
 
@@ -29,7 +30,7 @@ export const checklistComplete = (list: unknown): boolean => Array.isArray(list)
 
 const fail = (msg: string) => new MedusaError(MedusaError.Types.NOT_ALLOWED, msg)
 
-class WorkshopModuleService extends MedusaService({ WorkOrder, WorkActivity, WorkshopResource, WorkEvent }) {
+class WorkshopModuleService extends MedusaService({ WorkOrder, WorkActivity, WorkshopResource, WorkEvent, WorkMaterial }) {
   /** Next free number for the prefix, taken from the highest existing one (deleted orders included, numbers are never reused). */
   async nextNumber(type: WorkType): Promise<string> {
     const prefix = PREFIX[type]

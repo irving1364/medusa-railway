@@ -2,7 +2,7 @@ import type { AuthenticatedMedusaRequest, MedusaResponse } from "@medusajs/frame
 import { OPEN_STAGES, checklistFor, type WorkType } from "../../../../modules/workshop/service"
 import { ACTIVITY_FIELDS, ORDER_FIELDS, clean, loadOrder, logEvent, serializeOrder, workshopService, type Loose } from "../helpers"
 
-/** GET /admin/workshop/orders?company=&stage=open|<stage>&type=&blocked=1&q=&limit= */
+/** GET /admin/workshop/orders?company=&stage=open|<stage>&type=&blocked=1&quote_id=&customer_id=&q=&limit= */
 export async function GET(req: AuthenticatedMedusaRequest, res: MedusaResponse) {
   const service = workshopService(req)
   const filters: Loose = {}
@@ -12,6 +12,9 @@ export async function GET(req: AuthenticatedMedusaRequest, res: MedusaResponse) 
   else if (stage) filters.stage = stage
   if (type) filters.type = type
   if (blocked === "1") filters.blocked = true
+  const { quote_id, customer_id } = req.query as Record<string, string | undefined>
+  if (quote_id) filters.quote_id = quote_id
+  if (customer_id) filters.customer_id = customer_id
   const q = String(req.query.q || "").trim()
   if (q) filters.$or = [{ number: { $ilike: `%${q}%` } }, { title: { $ilike: `%${q}%` } }, { client_name: { $ilike: `%${q}%` } }, { quote_number: { $ilike: `%${q}%` } }]
   const [orders, count] = await service.listAndCountWorkOrders(filters, { take: Math.min(Number(req.query.limit) || 200, 500), order: { due_date: "ASC", created_at: "DESC" } })

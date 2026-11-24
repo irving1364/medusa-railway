@@ -5,6 +5,7 @@ import PurchaseOrder from "./models/purchase-order"
 import PurchasePayment from "./models/purchase-payment"
 import PurchaseProfile from "./models/purchase-profile"
 import PurchaseReceipt from "./models/purchase-receipt"
+import StockMovement from "./models/stock-movement"
 import Supplier from "./models/supplier"
 
 export type PurchaseCompany = "fabmetal" | "karven"
@@ -25,6 +26,8 @@ export interface PurchaseLine {
 }
 
 type Loose = Record<string, any>
+export type StockReason = "receipt" | "consumption" | "return" | "adjustment"
+export const roundQty = (n: number) => Math.round((n + Number.EPSILON) * 1000) / 1000
 const round = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100
 
 export const lineAmount = (l: PurchaseLine) => round((Number(l.quantity) || 0) * (Number(l.unit_price) || 0) * (1 - (Number(l.discount_pct) || 0) / 100))
@@ -44,7 +47,7 @@ export const DEFAULT_PROFILES: Record<PurchaseCompany, Loose> = {
   karven: { company: "karven", number_prefix: "PK", next_number: 1, ship_to_name: "KARVEN Medical", ship_to_address: "Calle Hato Azul casa N.º 43, La Cabima, Alcalde Díaz, Panamá", ship_to_phone: "6662-2199", payment_terms: "", tax_rate: 7 },
 }
 
-class PurchaseModuleService extends MedusaService({ Supplier, PurchaseItem, PurchaseOrder, PurchaseReceipt, PurchasePayment, PurchaseEvent, PurchaseProfile }) {
+class PurchaseModuleService extends MedusaService({ Supplier, PurchaseItem, PurchaseOrder, PurchaseReceipt, PurchasePayment, PurchaseEvent, PurchaseProfile, StockMovement }) {
   async profileFor(company: PurchaseCompany): Promise<Loose> {
     const [existing] = await this.listPurchaseProfiles({ company }, { take: 1 })
     if (existing) return existing
@@ -70,6 +73,18 @@ class PurchaseModuleService extends MedusaService({ Supplier, PurchaseItem, Purc
     if (ordered > 0 && received >= ordered) return "received"
     if (received > 0) return "partial"
     return current
+  }
+
+  /**
+   * Changes the stock of a material and records the movement. `quantity` is signed (+ in, - out).
+   * Stock may go negative (the workshop consumed material that was never counted): the caller warns.
+   */
+  async moveStock(input: { item_id: string; quantity: number; reason: StockReason; ref_type?: string | null; ref_id?: string | null; ref_label?: string | null; note?: string | null; actor_email?: string | null }): Promise<{ stock: number; movement: Loose }> {
+    const item = await this.retrievePurchaseItem(input.item_id)
+    const stock = roundQty((Number(item.stock) || 0) + input.quantity)
+    await this.updatePurchaseItems({ id: item.id, stock } as Loose)
+    const movement = await this.createStockMovements({ ...input, quantity: roundQty(input.quantity), balance: stock } as Loose)
+    return { stock, movement }
   }
 
   /** Remembers the last price paid per item (used to prefill the next order). */

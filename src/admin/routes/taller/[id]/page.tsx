@@ -1,8 +1,9 @@
 import { ArrowLeft, Trash } from "@medusajs/icons"
 import { Badge, Button, Checkbox, Container, FocusModal, Heading, IconButton, Input, Label, Switch, Table, Text, Textarea, toast, usePrompt } from "@medusajs/ui"
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react"
-import { useNavigate, useParams } from "react-router-dom"
+import { Link, useNavigate, useParams } from "react-router-dom"
 import ActivityDrawer from "../../../components/activity-drawer"
+import WorkMaterials from "../../../components/work-materials"
 import WorkOrderForm, { ResourceSelect } from "../../../components/work-order-form"
 import { companyColor, companyLabel } from "../../../lib/companies"
 import {
@@ -146,9 +147,12 @@ const WorkOrderPage = () => {
           <Container className="grid gap-4 sm:grid-cols-3">
             <Info label="Entrega comprometida">{fmtDay(order.due_date)}{left !== null && isOpen && <span className={left < 0 ? "text-ui-fg-error" : left <= 3 ? "text-ui-tag-orange-text" : "text-ui-fg-subtle"}> · {left < 0 ? `atrasada ${-left} d` : left === 0 ? "hoy" : `en ${left} d`}</span>}</Info>
             <Info label="Terminación interna">{fmtDay(order.finish_date)}</Info>
-            <Info label="Cliente">{order.client_name || "—"}{order.quote_number ? ` · Cot. ${order.quote_number}` : ""}</Info>
+            <Info label="Cliente">
+              {order.customer_id ? <Link to={`/clientes/${order.customer_id}`} className="text-ui-fg-interactive hover:underline">{order.client_name || "Ver cliente"}</Link> : order.client_name || "—"}
+              {order.quote_number && <> · {order.quote_id ? <Link to={`/cotizaciones/${order.quote_id}`} className="text-ui-fg-interactive hover:underline">Cot. {order.quote_number}</Link> : `Cot. ${order.quote_number}`}</>}
+            </Info>
             <Info label="Responsable">{(order.owner_id && people.get(order.owner_id)?.name) || "—"}</Info>
-            <Info label="Materiales"><Badge size="2xsmall" color={materialsColor(order.materials)}>{MATERIALS_LABEL[order.materials]}</Badge>{order.materials_note && order.materials !== "complete" && <span className="text-ui-fg-subtle"> · {order.materials_note}</span>}</Info>
+            <Info label="Materiales"><Badge size="2xsmall" color={materialsColor(order.materials)}>{MATERIALS_LABEL[order.materials]}</Badge>{order.materials_note && order.materials !== "complete" && <span className="text-ui-fg-subtle"> · {(order.material_lines || []).length ? "falta " : ""}{order.materials_note}</span>}</Info>
             <Info label="Horas">{hours(done)} de {hours(total)} hechas{actual ? ` · ${hours(actual)} reales` : ""}</Info>
             {order.next_action && <div className="sm:col-span-3"><Info label="Siguiente acción">{order.next_action}</Info></div>}
             {order.description && <div className="sm:col-span-3"><Info label="Descripción"><span className="whitespace-pre-line">{order.description}</span></Info></div>}
@@ -183,6 +187,8 @@ const WorkOrderPage = () => {
               <Button size="small" variant="secondary" onClick={addAct} disabled={busy}>Añadir</Button>
             </div>
           </Container>
+
+          <WorkMaterials order={order} onChange={setOrder} />
         </div>
 
         <div className="flex flex-col gap-3">
@@ -274,7 +280,7 @@ const WorkOrderPage = () => {
           <FocusModal.Body className="overflow-y-auto">
             <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-6 py-8">
               <FocusModal.Title asChild><Heading level="h1">{order.number} · Editar datos</Heading></FocusModal.Title>
-              {draft && <WorkOrderForm value={draft} onChange={setDraft} resources={resources} />}
+              {draft && <WorkOrderForm value={draft} onChange={setDraft} resources={resources} materialsLocked={(order.material_lines?.length || 0) > 0} />}
             </div>
           </FocusModal.Body>
         </FocusModal.Content>

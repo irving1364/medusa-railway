@@ -10,6 +10,8 @@ export interface CheckItem { label: string; done: boolean }
 
 export interface Resource { id: string; name: string; role: string | null; weekly_capacity: number; daily_capacity: number; active: boolean; sort_order: number; deleted_at?: string | null }
 export interface Activity { id: string; order_id: string; name: string; date: string | null; resource_id: string | null; hours: number; actual_hours: number | null; status: ActivityStatus; sort_order: number; notes: string | null }
+export interface Material { id: string; order_id: string; item_id: string | null; item_ref: string | null; name: string; unit: string; required: number; consumed: number; remaining: number; stock: number | null; min_stock: number | null; last_price: number | null; shortfall: number; note: string | null }
+export interface LinkedPurchase { id: string; number: string; status: string; supplier_name: string; expected_date: string | null; total: number }
 export interface WorkEvent { id: string; action: string; note: string | null; actor_email: string | null; created_at: string }
 export interface WorkOrder {
   id: string
@@ -45,7 +47,10 @@ export interface WorkOrder {
   created_at: string
   progress?: { total: number; done: number; activities: number; unscheduled: number }
   activities?: Activity[]
+  material_lines?: Material[]
+  purchase_orders?: LinkedPurchase[]
   events?: WorkEvent[]
+  metadata?: Record<string, unknown> | null
 }
 export interface Schedule { from: string; to: string; resources: Resource[]; orders: WorkOrder[]; activities: Activity[]; unscheduled: Activity[] }
 export interface Summary { open: number; blocked: number; due_this_week: number; overdue: number; inspection: number }
@@ -56,6 +61,8 @@ export interface OrderInput {
   title: string
   description: string
   client_name: string
+  customer_id: string
+  quote_id: string
   quote_number: string
   quantity: number
   due_date: string
@@ -110,10 +117,10 @@ const qs = (params: Record<string, string | number | undefined | null>) => {
 }
 const W = "/admin/workshop"
 
-export const listOrders = (params: { company?: string; stage?: string; type?: string; blocked?: boolean; q?: string } = {}) =>
+export const listOrders = (params: { company?: string; stage?: string; type?: string; blocked?: boolean; q?: string; quote_id?: string; customer_id?: string } = {}) =>
   api<{ orders: WorkOrder[]; count: number }>(`${W}/orders${qs({ ...params, blocked: params.blocked ? 1 : undefined })}`)
 export const getOrder = (id: string) => api<{ order: WorkOrder }>(`${W}/orders/${id}`)
-export const createOrder = (body: Partial<OrderInput> & { activities?: ActivityInput[] }) => api<{ order: WorkOrder }>(`${W}/orders`, { method: "POST", body: nulls(body) })
+export const createOrder = (body: Partial<OrderInput> & { activities?: ActivityInput[]; metadata?: Record<string, unknown> | null }) => api<{ order: WorkOrder }>(`${W}/orders`, { method: "POST", body: nulls(body) })
 export const updateOrder = (id: string, body: Partial<OrderInput> & { blocked?: boolean; blocker?: string | null; checklist?: CheckItem[]; delivery_note?: string | null }) =>
   api<{ order: WorkOrder }>(`${W}/orders/${id}`, { method: "POST", body: nulls(body) })
 export const deleteOrder = (id: string) => api(`${W}/orders/${id}`, { method: "DELETE" })
@@ -121,6 +128,11 @@ export const setStage = (id: string, stage: WorkStage, note?: string) => api<{ o
 export const addActivity = (orderId: string, body: ActivityInput) => api<{ order: WorkOrder }>(`${W}/orders/${orderId}/activities`, { method: "POST", body })
 export const updateActivity = (id: string, body: Partial<ActivityInput> & { sort_order?: number }) => api<{ activity: Activity; warnings: string[] }>(`${W}/activities/${id}`, { method: "POST", body })
 export const deleteActivity = (id: string) => api(`${W}/activities/${id}`, { method: "DELETE" })
+export const addMaterial = (orderId: string, body: { item_id?: string | null; name?: string; unit?: string; required: number; note?: string | null }) => api<{ order: WorkOrder }>(`${W}/orders/${orderId}/materials`, { method: "POST", body })
+export const updateMaterial = (id: string, body: { required?: number; note?: string | null; name?: string; unit?: string }) => api<{ order: WorkOrder }>(`${W}/materials/${id}`, { method: "POST", body })
+export const deleteMaterial = (id: string) => api<{ order: WorkOrder }>(`${W}/materials/${id}`, { method: "DELETE" })
+/** quantity > 0 consumes from stock, < 0 returns it. */
+export const consumeMaterial = (id: string, quantity: number, note?: string) => api<{ order: WorkOrder; warnings: string[] }>(`${W}/materials/${id}/consume`, { method: "POST", body: { quantity, note: note || null } })
 export const listResources = (active = false) => api<{ resources: Resource[] }>(`${W}/resources${qs({ active: active ? 1 : undefined })}`)
 export const createResource = (body: Partial<Resource>) => api<{ resource: Resource }>(`${W}/resources`, { method: "POST", body })
 export const updateResource = (id: string, body: Partial<Resource>) => api<{ resource: Resource }>(`${W}/resources/${id}`, { method: "POST", body })
@@ -158,11 +170,11 @@ export const daysUntil = (s: string | null) => (s ? Math.round((parseDay(s).getT
 export const hours = (n: number) => `${Math.round(n * 100) / 100} h`
 
 export const emptyOrder = (company: CompanyCode, type: WorkType = "fabrication"): OrderInput => ({
-  company, type, title: "", description: "", client_name: "", quote_number: "", quantity: 1, due_date: "", finish_date: "",
+  company, type, title: "", description: "", client_name: "", customer_id: "", quote_id: "", quote_number: "", quantity: 1, due_date: "", finish_date: "",
   priority: "normal", materials: "pending", materials_note: "", owner_id: "", next_action: "", notes: "",
 })
 export const orderToInput = (o: WorkOrder): OrderInput => ({
-  company: o.company, type: o.type, title: o.title, description: o.description || "", client_name: o.client_name || "", quote_number: o.quote_number || "",
+  company: o.company, type: o.type, title: o.title, description: o.description || "", client_name: o.client_name || "", customer_id: o.customer_id || "", quote_id: o.quote_id || "", quote_number: o.quote_number || "",
   quantity: o.quantity, due_date: o.due_date || "", finish_date: o.finish_date || "", priority: o.priority, materials: o.materials,
   materials_note: o.materials_note || "", owner_id: o.owner_id || "", next_action: o.next_action || "", notes: o.notes || "",
 })

@@ -63,3 +63,22 @@ export const ResourceSchema = z.object({
   sort_order: z.number().int().optional(),
 })
 export const UpdateResourceSchema = ResourceSchema.partial()
+
+export const CreateMaterialLineSchema = z.object({
+  item_id: z.string().max(100).nullable().optional(),
+  name: z.string().trim().max(300).optional(),
+  unit: z.string().trim().max(40).optional(),
+  required: z.number().positive("Indique la cantidad").max(1000000),
+  note: text(500),
+}).refine((v) => !!v.item_id || !!v.name, { message: "Elija un material del catálogo o escriba su nombre" })
+export const UpdateMaterialLineSchema = z.object({
+  name: z.string().trim().min(1).max(300).optional(),
+  unit: z.string().trim().max(40).optional(),
+  required: z.number().positive().max(1000000).optional(),
+  note: text(500),
+})
+/** quantity > 0 consumes (takes from stock), quantity < 0 returns to stock. */
+export const ConsumeSchema = z.object({
+  quantity: z.number().min(-1000000).max(1000000).refine((n) => n !== 0, "Indique una cantidad"),
+  note: text(500),
+})

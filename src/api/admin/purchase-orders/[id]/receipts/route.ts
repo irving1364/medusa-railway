@@ -2,6 +2,7 @@ import type { AuthenticatedMedusaRequest, MedusaResponse } from "@medusajs/frame
 import { MedusaError } from "@medusajs/framework/utils"
 import type { PurchaseLine } from "../../../../../modules/purchase/service"
 import { actorEmail, logEvent, purchaseService, serialize, type Loose } from "../../../purchases/helpers"
+import { resyncForItems } from "../../../workshop/helpers"
 
 const toDate = (v: unknown): Date => { if (!v) return new Date(); const s = String(v); const d = /^\d{4}-\d{2}-\d{2}$/.test(s) ? new Date(`${s}T12:00:00Z`) : new Date(s); return Number.isNaN(d.getTime()) ? new Date() : d }
 
@@ -39,6 +40,14 @@ export async function POST(req: AuthenticatedMedusaRequest<{ received_at?: strin
   if (reference && !order.invoice_reference) patch.invoice_reference = reference
   const updated = await service.updatePurchaseOrders(patch)
   await service.rememberPrices(lines.filter((l) => applied.some((a) => a.line_id === l.id)), order.supplier_id || null, order.supplier_name || null)
+  // Received materials of the catalogue go into stock (free-text lines have no item to count).
+  const actor = await actorEmail(req)
+  for (const a of applied) {
+    const line = lines.find((l) => l.id === a.line_id)
+    if (!line?.item_id) continue
+    try { await service.moveStock({ item_id: line.item_id, quantity: a.quantity, reason: "receipt", ref_type: "purchase_order", ref_id: order.id, ref_label: order.number, note: reference || null, actor_email: actor }) } catch { /* item removed from the catalogue */ }
+  }
+  await resyncForItems(req, [...new Set(lines.filter((l) => l.item_id && applied.some((a) => a.line_id === l.id)).map((l) => l.item_id as string))])
   await logEvent(req, order.id, "receipt", note || reference || null, { lines: applied, status })
   res.status(201).json({ order: serialize(updated), receipt })
 }

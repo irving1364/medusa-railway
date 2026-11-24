@@ -4,7 +4,7 @@ import type { CompanyCode } from "./companies"
 export type PurchaseStatus = "draft" | "sent" | "confirmed" | "partial" | "received" | "cancelled"
 
 export interface Supplier { id: string; name: string; ruc: string | null; dv: string | null; contact_name: string | null; phone: string | null; email: string | null; address: string | null; payment_terms: string | null; notes: string | null; active: boolean; created_at: string }
-export interface PurchaseItem { id: string; ref: string | null; name: string; description: string | null; unit: string; category: string | null; last_price: number | null; last_supplier_id: string | null; last_supplier_name: string | null; last_bought_at: string | null; active: boolean }
+export interface PurchaseItem { id: string; ref: string | null; name: string; description: string | null; unit: string; category: string | null; last_price: number | null; last_supplier_id: string | null; last_supplier_name: string | null; last_bought_at: string | null; active: boolean; stock: number | string; min_stock: number | string | null }
 export interface PurchaseLine { id: string; item_id: string | null; ref: string | null; title: string; description: string | null; quantity: number; unit: string; unit_price: number; discount_pct: number; tax_rate: number; received_qty: number }
 export interface Receipt { id: string; received_at: string; reference: string | null; lines: { line_id: string; quantity: number }[]; note: string | null; actor_email: string | null }
 export interface Payment { id: string; paid_at: string; amount: number; method: string | null; reference: string | null; note: string | null; actor_email: string | null }
@@ -19,6 +19,7 @@ export interface PurchaseOrder {
   notes_internal: string | null; invoice_reference: string | null
   sent_at: string | null; confirmed_at: string | null; received_at: string | null; cancelled_at: string | null; last_pdf_url: string | null
   created_at: string; updated_at: string
+  metadata?: Record<string, unknown> | null
 }
 export interface PurchaseProfile { id: string; company: CompanyCode; number_prefix: string; next_number: number; ship_to_name: string | null; ship_to_address: string | null; ship_to_phone: string | null; payment_terms: string | null; tax_rate: number; email_signature: string | null }
 
@@ -31,7 +32,7 @@ export interface PurchaseInput {
   notes_internal: string; invoice_reference: string
 }
 export interface SupplierInput { name: string; ruc: string; dv: string; contact_name: string; phone: string; email: string; address: string; payment_terms: string; notes: string }
-export interface ItemInput { name: string; ref: string; description: string; unit: string; category: string; last_price: string }
+export interface ItemInput { name: string; ref: string; description: string; unit: string; category: string; last_price: string; min_stock: string }
 
 export const STATUS: Record<PurchaseStatus, { label: string; color: "grey" | "blue" | "green" | "orange" | "red" | "purple" }> = {
   draft: { label: "Borrador", color: "grey" }, sent: { label: "Enviada", color: "blue" }, confirmed: { label: "Confirmada", color: "purple" },
@@ -58,7 +59,7 @@ export const emptyOrder = (company: CompanyCode, profile?: PurchaseProfile | nul
   order_date: todayISO(), expected_date: "", payment_terms: profile?.payment_terms || "", lines: [], notes_internal: "", invoice_reference: "",
 })
 export const emptySupplier = (): SupplierInput => ({ name: "", ruc: "", dv: "", contact_name: "", phone: "", email: "", address: "", payment_terms: "", notes: "" })
-export const emptyItem = (): ItemInput => ({ name: "", ref: "", description: "", unit: "Unidades", category: "", last_price: "" })
+export const emptyItem = (): ItemInput => ({ name: "", ref: "", description: "", unit: "Unidades", category: "", last_price: "", min_stock: "" })
 
 export const toInput = (o: PurchaseOrder): PurchaseInput => ({
   company: o.company, supplier_id: o.supplier_id, supplier_name: o.supplier_name || "", supplier_ruc: o.supplier_ruc || "", supplier_contact: o.supplier_contact || "", supplier_phone: o.supplier_phone || "", supplier_email: o.supplier_email || "", supplier_address: o.supplier_address || "",
@@ -77,14 +78,14 @@ export const lineProblem = (lines: PurchaseLine[]): string | null => {
 export const toBody = (f: PurchaseInput) => ({ ...f, supplier_id: f.supplier_id || null, expected_date: f.expected_date || null, lines: f.lines.filter((l) => !isBlankLine(l)).map((l) => ({ ...l, title: l.title.trim(), quantity: Number(l.quantity) || 0, unit_price: Number(l.unit_price) || 0, discount_pct: Number(l.discount_pct) || 0, tax_rate: Number(l.tax_rate) || 0 })) })
 export const supplierToInput = (s: Supplier): SupplierInput => ({ name: s.name || "", ruc: s.ruc || "", dv: s.dv || "", contact_name: s.contact_name || "", phone: s.phone || "", email: s.email || "", address: s.address || "", payment_terms: s.payment_terms || "", notes: s.notes || "" })
 export const supplierFields = (s: Supplier) => ({ supplier_id: s.id, supplier_name: s.name, supplier_ruc: s.ruc ? `${s.ruc}${s.dv ? ` DV ${s.dv}` : ""}` : "", supplier_contact: s.contact_name || "", supplier_phone: s.phone || "", supplier_email: s.email || "", supplier_address: s.address || "" })
-export const itemToInput = (it: PurchaseItem): ItemInput => ({ name: it.name, ref: it.ref || "", description: it.description || "", unit: it.unit || "Unidades", category: it.category || "", last_price: it.last_price != null ? String(it.last_price) : "" })
+export const itemToInput = (it: PurchaseItem): ItemInput => ({ name: it.name, ref: it.ref || "", description: it.description || "", unit: it.unit || "Unidades", category: it.category || "", last_price: it.last_price != null ? String(it.last_price) : "", min_stock: it.min_stock != null ? String(Number(it.min_stock)) : "" })
 
 /* ─── API ──────────────────────────────────────────────────────────────────── */
 const api = <T,>(path: string, init: { method?: string; body?: unknown; query?: Record<string, string | number | undefined> } = {}) => sdk.client.fetch<T>(path, { method: init.method || "GET", body: init.body, query: init.query })
 
 export const listOrders = (query: Record<string, string | number | undefined>) => api<{ orders: PurchaseOrder[]; count: number }>("/admin/purchase-orders", { query })
 export const getOrder = (id: string) => api<{ order: PurchaseOrder; receipts: Receipt[]; payments: Payment[]; events: PurchaseEvent[] }>(`/admin/purchase-orders/${id}`)
-export const createOrder = (body: ReturnType<typeof toBody>) => api<{ order: PurchaseOrder }>("/admin/purchase-orders", { method: "POST", body })
+export const createOrder = (body: ReturnType<typeof toBody> & { metadata?: Record<string, unknown> | null }) => api<{ order: PurchaseOrder }>("/admin/purchase-orders", { method: "POST", body })
 export const updateOrder = (id: string, body: Partial<ReturnType<typeof toBody>>) => api<{ order: PurchaseOrder }>(`/admin/purchase-orders/${id}`, { method: "POST", body })
 export const deleteOrder = (id: string) => api<{ id: string }>(`/admin/purchase-orders/${id}`, { method: "DELETE" })
 export const setOrderStatus = (id: string, status: "draft" | "sent" | "confirmed" | "cancelled", note?: string) => api<{ order: PurchaseOrder }>(`/admin/purchase-orders/${id}/status`, { method: "POST", body: { status, note: note || null } })
@@ -109,6 +110,15 @@ export const listPurchaseProfiles = () => api<{ profiles: PurchaseProfile[] }>("
 export const updatePurchaseProfile = (company: CompanyCode, body: Partial<PurchaseProfile>) => api<{ profile: PurchaseProfile }>(`/admin/purchase-profiles/${company}`, { method: "POST", body })
 
 const clean = (b: object) => Object.fromEntries(Object.entries(b).map(([k, v]) => [k, typeof v === "string" ? v.trim() || null : v]))
-const itemBody = (b: Partial<ItemInput> & { active?: boolean }) => { const o: Record<string, unknown> = clean(b); if ("last_price" in b) o.last_price = b.last_price === "" || b.last_price == null ? null : Number(b.last_price); if ("unit" in b) o.unit = b.unit || "Unidades"; return o }
+const itemBody = (b: Partial<ItemInput> & { active?: boolean }) => { const o: Record<string, unknown> = clean(b); if ("last_price" in b) o.last_price = b.last_price === "" || b.last_price == null ? null : Number(b.last_price); if ("unit" in b) o.unit = b.unit || "Unidades"; if ("min_stock" in b) o.min_stock = b.min_stock === "" || b.min_stock == null ? null : Number(b.min_stock); return o }
 
 export const errorMessage = (e: unknown, fallback: string) => (e && typeof e === "object" && "message" in e && typeof (e as { message: unknown }).message === "string" ? (e as { message: string }).message : fallback)
+
+/* ─── Stock of materials ─── */
+
+export type StockReason = "receipt" | "consumption" | "return" | "adjustment"
+export interface StockMovement { id: string; item_id: string; quantity: number; balance: number; reason: StockReason; ref_type: string | null; ref_id: string | null; ref_label: string | null; note: string | null; actor_email: string | null; created_at: string }
+export const STOCK_REASON: Record<StockReason, string> = { receipt: "Recepción", consumption: "Consumo", return: "Devolución", adjustment: "Ajuste" }
+export const getStock = (id: string) => api<{ stock: number; min_stock: number | null; unit: string; movements: StockMovement[] }>(`/admin/purchase-items/${id}/stock`)
+export const adjustStock = (id: string, body: { count?: number; delta?: number; note?: string | null }) => api<{ stock: number; movement: StockMovement }>(`/admin/purchase-items/${id}/stock`, { method: "POST", body })
+export const fmtQty = (n: number | string | null | undefined) => { const v = Math.round((Number(n) || 0) * 1000) / 1000; return v.toLocaleString("es-PA", { maximumFractionDigits: 3 }) }

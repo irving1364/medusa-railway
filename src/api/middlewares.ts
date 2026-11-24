@@ -8,8 +8,8 @@ import { z } from "zod"
 
 const QuoteResponseSchema = z.object({ action: z.enum(["accept", "changes", "reject"]), name: z.string().trim().min(2).max(120), comment: z.string().max(2000).nullable().optional() })
 import { CreateMailAccountSchema, UpdateMailAccountSchema, TestMailAccountSchema, OutgoingSchema, FlagsSchema, MoveSchema } from "./admin/mail/validators"
-import { CreateWorkOrderSchema, UpdateWorkOrderSchema, WorkStageSchema, CreateActivitySchema, UpdateActivitySchema, ResourceSchema, UpdateResourceSchema } from "./admin/workshop/validators"
-import { SupplierSchema, UpdateSupplierSchema, ItemSchema, UpdateItemSchema, CreatePurchaseOrderSchema, UpdatePurchaseOrderSchema, PurchaseStatusSchema, SendPurchaseSchema, ReceiptSchema, PaymentSchema, PurchaseProfileSchema } from "./admin/purchases/validators"
+import { CreateWorkOrderSchema, UpdateWorkOrderSchema, WorkStageSchema, CreateActivitySchema, UpdateActivitySchema, ResourceSchema, UpdateResourceSchema, CreateMaterialLineSchema, UpdateMaterialLineSchema, ConsumeSchema } from "./admin/workshop/validators"
+import { SupplierSchema, UpdateSupplierSchema, ItemSchema, UpdateItemSchema, CreatePurchaseOrderSchema, UpdatePurchaseOrderSchema, PurchaseStatusSchema, SendPurchaseSchema, ReceiptSchema, PaymentSchema, PurchaseProfileSchema, StockAdjustSchema } from "./admin/purchases/validators"
 
 // Files stay in memory (same approach as the core /admin/uploads route) and are handed to the file module as base64.
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024, files: 30 } })
@@ -57,5 +57,9 @@ export default defineMiddlewares({
     { matcher: "/admin/workshop/activities/:id", method: "POST", middlewares: [validateAndTransformBody(UpdateActivitySchema)] },
     { matcher: "/admin/workshop/resources", method: "POST", middlewares: [validateAndTransformBody(ResourceSchema)] },
     { matcher: "/admin/workshop/resources/:id", method: "POST", middlewares: [validateAndTransformBody(UpdateResourceSchema)] },
+    { matcher: "/admin/workshop/orders/:id/materials", method: "POST", middlewares: [validateAndTransformBody(CreateMaterialLineSchema)] },
+    { matcher: "/admin/workshop/materials/:id", method: "POST", middlewares: [validateAndTransformBody(UpdateMaterialLineSchema)] },
+    { matcher: "/admin/workshop/materials/:id/consume", method: "POST", middlewares: [validateAndTransformBody(ConsumeSchema)] },
+    { matcher: "/admin/purchase-items/:id/stock", method: "POST", middlewares: [validateAndTransformBody(StockAdjustSchema)] },
   ],
 })

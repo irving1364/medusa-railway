@@ -12,6 +12,10 @@ const PurchaseItem = model.define("purchase_item", {
   last_supplier_id: model.text().nullable(),
   last_supplier_name: model.text().nullable(),
   last_bought_at: model.dateTime().nullable(),
+  /** Quantity on hand, in the purchase unit. Receipts add, workshop consumption subtracts, counts adjust. Can go negative until counted. */
+  stock: model.number().default(0),
+  /** Below this the materials page flags the item to reorder. */
+  min_stock: model.number().nullable(),
   active: model.boolean().default(true),
 })
 

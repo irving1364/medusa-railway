@@ -3,6 +3,7 @@ import { Badge, Button, Container, Heading, Prompt, Text, toast } from "@medusaj
 import { useEffect, useMemo, useState } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import CustomerForm from "../../../components/customer-form"
+import CustomerWorkOrders from "../../../components/customer-work-orders"
 import { customerName, deleteCustomer, errorMessage, getCustomer, toInput, toPayload, updateCustomer, validate, type CustomerInput } from "../../../lib/customers"
 
 /** /clientes/:id — edit a customer; link to the native screen for orders and addresses. */
@@ -53,6 +54,7 @@ const EditCustomerPage = () => {
         </div>
       </Container>
       <Container><CustomerForm value={value} onChange={setValue} /></Container>
+      <CustomerWorkOrders customerId={customer.id} />
       <Prompt open={confirmDelete} onOpenChange={setConfirmDelete}>
         <Prompt.Content>
           <Prompt.Header><Prompt.Title>Eliminar a {customerName(customer)}</Prompt.Title><Prompt.Description>Se borra el registro del cliente. Sus cotizaciones y pedidos anteriores conservan los datos que ya tenían.</Prompt.Description></Prompt.Header>

@@ -1,5 +1,7 @@
 import type { AuthenticatedMedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import type { PurchaseCompany } from "../../../modules/purchase/service"
+import { WORKSHOP_MODULE } from "../../../modules/workshop"
+import type WorkshopModuleService from "../../../modules/workshop/service"
 import { actorEmail, bodyToRow, purchaseService, serialize, type Loose } from "../purchases/helpers"
 
 /** GET /admin/purchase-orders?q=&company=&status=&supplier_id=&limit=&offset= — newest first. `status=pending_payment` = balance > 0 and not cancelled. */
@@ -37,5 +39,19 @@ export async function POST(req: AuthenticatedMedusaRequest<Loose>, res: MedusaRe
   row.paid_total = 0
   const order = await service.createPurchaseOrders(row as Loose)
   await service.createPurchaseEvents({ order_id: order.id, action: "created", actor_email: await actorEmail(req) } as Loose)
+  // Bought for a workshop job: the work order remembers it (shown on its materials card).
+  const workOrderId = (row.metadata as Loose | null)?.work_order_id
+  if (typeof workOrderId === "string" && workOrderId) await linkToWorkOrder(req, workOrderId, order)
   res.status(201).json({ order: serialize(order) })
+}
+
+async function linkToWorkOrder(req: AuthenticatedMedusaRequest, workOrderId: string, po: Loose) {
+  try {
+    const workshop = req.scope.resolve(WORKSHOP_MODULE) as WorkshopModuleService
+    const wo = await workshop.retrieveWorkOrder(workOrderId)
+    const meta = (wo.metadata || {}) as Loose
+    const list = Array.isArray(meta.purchase_orders) ? meta.purchase_orders : []
+    await workshop.updateWorkOrders({ id: wo.id, metadata: { ...meta, purchase_orders: [...list, { id: po.id, number: po.number, supplier_name: po.supplier_name }] } } as Loose)
+    await workshop.createWorkEvents({ order_id: wo.id, action: "purchase", note: `Orden de compra ${po.number} a ${po.supplier_name}`, actor_email: await actorEmail(req) } as Loose)
+  } catch { /* the work order was deleted meanwhile: the purchase stands on its own */ }
 }

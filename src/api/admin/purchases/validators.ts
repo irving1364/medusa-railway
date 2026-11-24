@@ -14,9 +14,16 @@ export const ItemSchema = z.object({
   name: z.string().trim().min(1).max(300),
   ref: optText(80), description: optText(2000), unit: z.string().max(40).optional(), category: optText(120),
   last_price: z.number().min(0).nullable().optional(),
+  min_stock: z.number().min(0).max(1000000).nullable().optional(),
   active: z.boolean().optional(),
 })
 export const UpdateItemSchema = ItemSchema.partial()
+/** Physical count (`count`: the new quantity on hand) or a signed correction (`delta`). */
+export const StockAdjustSchema = z.object({
+  count: z.number().min(-1000000).max(1000000).optional(),
+  delta: z.number().min(-1000000).max(1000000).optional(),
+  note: optText(500),
+}).refine((v) => (v.count === undefined) !== (v.delta === undefined), { message: "Indique el conteo o la corrección" })
 
 export const PurchaseLineSchema = z.object({
   id: z.string().min(1).max(60),
