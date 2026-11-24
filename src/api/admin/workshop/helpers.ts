@@ -1,4 +1,5 @@
 import type { AuthenticatedMedusaRequest } from "@medusajs/framework/http"
+import { COMPANY_MODULE } from "../../../modules/company"
 import { WORKSHOP_MODULE } from "../../../modules/workshop"
 import type WorkshopModuleService from "../../../modules/workshop/service"
 import { actorEmail, purchaseService } from "../purchases/helpers"
@@ -97,4 +98,40 @@ export async function resyncForItems(req: AuthenticatedMedusaRequest, itemIds: s
     const open = await service.listWorkOrders({ id: orderIds, stage: ["preparation", "scheduled", "in_progress", "inspection"] } as Loose, { select: ["id"] })
     for (const o of open) await syncMaterials(req, o.id)
   } catch { /* the workshop view refreshes on the next change anyway */ }
+}
+
+/** Planner data for a date range: planned activities, still-to-plan activities of open orders, the orders involved, the people. */
+export async function loadSchedule(req: { scope: any }, from: string, to: string, company: string | null) {
+  const service = workshopService(req)
+  const OPEN = ["preparation", "scheduled", "in_progress", "inspection"]
+  const [planned, resources, openOrders] = await Promise.all([
+    service.listWorkActivities({ date: { $gte: from, $lte: to } } as Loose, { order: { date: "ASC", sort_order: "ASC" } }),
+    service.listWorkshopResources({}, { order: { sort_order: "ASC", name: "ASC" }, withDeleted: true } as Loose),
+    service.listWorkOrders({ stage: OPEN, ...(company ? { company } : {}) } as Loose, { order: { due_date: "ASC" } }),
+  ])
+  const openIds = openOrders.map((o) => o.id)
+  const unscheduled = openIds.length ? await service.listWorkActivities({ order_id: openIds, date: null, status: ["pending", "in_progress"] } as Loose, { order: { sort_order: "ASC" } }) : []
+  // Orders referenced by the planned activities may be closed already (history of the week).
+  const known = new Set(openIds)
+  const missing = [...new Set(planned.map((a) => a.order_id).filter((id) => !known.has(id)))]
+  const others = missing.length ? await service.listWorkOrders({ id: missing, ...(company ? { company } : {}) } as Loose) : []
+  const orders = [...openOrders, ...others]
+  const visible = new Set(orders.map((o) => o.id))
+  return {
+    from, to,
+    resources: resources.map(serializeResource),
+    orders: orders.map(serializeOrder),
+    activities: planned.filter((a) => visible.has(a.order_id)).map(serializeActivity),
+    unscheduled: unscheduled.map(serializeActivity),
+  }
+}
+
+/** Letterhead of a company (Empresas): name, logo, colour. */
+export async function identityOf(req: { scope: any }, code: string): Promise<Loose> {
+  try {
+    const companies = req.scope.resolve(COMPANY_MODULE) as { byCode: (c: string) => Promise<Loose | null> }
+    return (await companies.byCode(code)) || { name: code.toUpperCase(), brand_line: code.toUpperCase() }
+  } catch {
+    return { name: code.toUpperCase(), brand_line: code.toUpperCase() }
+  }
 }

@@ -138,6 +138,9 @@ export const createResource = (body: Partial<Resource>) => api<{ resource: Resou
 export const updateResource = (id: string, body: Partial<Resource>) => api<{ resource: Resource }>(`${W}/resources/${id}`, { method: "POST", body })
 export const deleteResource = (id: string) => api(`${W}/resources/${id}`, { method: "DELETE" })
 export const getSchedule = (from: string, to: string, company?: string) => api<Schedule>(`${W}/schedule${qs({ from, to, company })}`)
+/** Printable PDFs (same-origin, the admin session cookie authorises them). */
+export const orderPdfUrl = (id: string, download = false) => `${W}/orders/${id}/pdf${download ? "?download=1" : ""}`
+export const weekPdfUrl = (monday: string, company?: string) => `${W}/schedule/pdf${qs({ week: monday, company })}`
 export const getSummary = (company?: string) => api<Summary>(`${W}/summary${qs({ company, today: today() })}`)
 
 /** Empty strings of the forms travel as null (the API keeps optional fields nullable). */

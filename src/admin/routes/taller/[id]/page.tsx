@@ -8,7 +8,7 @@ import WorkOrderForm, { ResourceSelect } from "../../../components/work-order-fo
 import { companyColor, companyLabel } from "../../../lib/companies"
 import {
   ACTIVITY_LABEL, MATERIALS_LABEL, OPEN_STAGES, PRIORITY_LABEL, STAGES, STAGE_LABEL, TYPE_LABEL, activityColor, addActivity, daysUntil, deleteOrder, errorMessage, fmtDateTime, fmtDay,
-  getOrder, hours, listResources, materialsColor, orderToInput, priorityColor, setStage, stageColor, updateActivity, updateOrder,
+  getOrder, hours, listResources, orderPdfUrl, materialsColor, orderToInput, priorityColor, setStage, stageColor, updateActivity, updateOrder,
   type Activity, type CheckItem, type OrderInput, type Resource, type WorkOrder, type WorkStage,
 } from "../../../lib/workshop"
 
@@ -120,6 +120,7 @@ const WorkOrderPage = () => {
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
+            <Button size="small" variant="secondary" asChild><a href={orderPdfUrl(order.id)} target="_blank" rel="noreferrer">Imprimir (PDF)</a></Button>
             <Button size="small" variant="secondary" onClick={startEdit}>Editar datos</Button>
             {next && next.stage !== "released" && next.stage !== "delivered" && <Button size="small" onClick={() => changeStage(next.stage)} isLoading={busy}>{next.label}</Button>}
           </div>

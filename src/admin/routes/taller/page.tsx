@@ -9,7 +9,7 @@ import WorkOrderForm from "../../components/work-order-form"
 import { companyColor, companyLabel, defaultCompanyCode, useCompany } from "../../lib/companies"
 import {
   ACTIVITY_TEMPLATES, MATERIALS_LABEL, OPEN_STAGES, STAGE_LABEL, TYPE_LABEL, addDays, createOrder, dayName, dayShort, daysUntil, emptyOrder, errorMessage, fmtDay, getSchedule, getSummary,
-  hours, listOrders, listResources, materialsColor, mondayOf, stageColor, today, updateActivity, weekLabel,
+  hours, listOrders, listResources, materialsColor, mondayOf, stageColor, today, updateActivity, weekLabel, weekPdfUrl,
   type Activity, type ActivityInput, type OrderInput, type Resource, type Schedule, type Summary, type WorkOrder,
 } from "../../lib/workshop"
 
@@ -380,6 +380,7 @@ const WorkshopPage = () => {
                 {monday !== mondayOf(today()) && <Button size="small" variant="secondary" onClick={() => set({ semana: null })}>Hoy</Button>}
               </div>
               <span className="flex-1" />
+              {mode !== "timeline" && <Button size="small" variant="secondary" asChild><a href={weekPdfUrl(monday, company)} target="_blank" rel="noreferrer">Imprimir semana</a></Button>}
               {mode === "week" && (
                 <div className="w-52">
                   <Select size="small" value={person || "all"} onValueChange={(v) => setPerson(v === "all" ? "" : v)}>
